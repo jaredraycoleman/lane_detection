@@ -19,7 +19,8 @@ def preprocess(img):
 	gray = cv2.cvtColor( img, cv2.COLOR_RGB2GRAY )
 	kernel = np.ones((5,5),np.float32)/25
 	gray = cv2.filter2D(gray,-1,kernel)
-	ret, thresh = cv2.threshold(gray,180,255,cv2.THRESH_BINARY)
+	ret, thresh = cv2.threshold(gray,185,255,cv2.THRESH_BINARY)
+	cv2.imshow('thresh', thresh)
 	
 	return thresh
 
@@ -41,12 +42,12 @@ def poly(x, params):
 	return res
 	
 def fit_curve(points, degree):
-	z = np.array([i for i in points if i[1] < height * 0.85])
-	x = [i for i in z.T[1]]
-	y = [i for i in z.T[0]]
+	#z = np.array([i for i in points if i[1] < height * 0.80 and i[1] > height * 0.10])
+	x = [i for i in points.T[1]]
+	y = [i for i in points.T[0]]
 	params = np.polyfit(x, y, degree)
-	for point in points: point = [int(poly(point[1], params)), point[1]]
-	return points #np.array([[int(poly(x[1], params)), x[1]] for x in points])
+	for point in points: point[0] = int(poly(point[1], params))
+	return points
 	
 def filter_lane(current, previous, pfilter):
 	if previous.size == 0: return current
@@ -70,11 +71,9 @@ def get_lane_points(img):
 	step = 10	#Step for row processing
 	height, width, = thresh.shape
 	stop = 0
-	left = width * 0.1
-	right = width * 0.9
+	left = width * 0.2
+	right = width * 0.8
 	center = int(width/2)
-	bcenter = int(width * 0.05)		#bias for removing center
-	kcenter = 0.117924528			#proportional constant for removing center
 	
 	num_steps = int(height/step)
 	lefts = np.zeros((num_steps,2), dtype=np.int)
@@ -84,10 +83,8 @@ def get_lane_points(img):
 	while height > stop:
 		num_steps -= 1
 		
-		c_thresh = 0#int(kcenter * height + bcenter)
-		
-		l = get_furthest_pixel(thresh[height], True, left - 50, left + 50)
-		r = get_furthest_pixel(thresh[height], False, right - 50, right + 50)
+		l = get_furthest_pixel(thresh[height], True, 0, center-50)
+		r = get_furthest_pixel(thresh[height], False, center+50, width-1)
 
 		if l != -1 and r != -1: center = (r + l) / 2
 		
@@ -106,8 +103,8 @@ def get_lane_points(img):
 	
 def find_lanes(img, left_lane, right_lane):
 	'''Variables'''
-	pfilter = 0.9
-	degree = 1
+	pfilter = 0.90
+	degree = 2
 	
 	'''Get unfiltered lane points'''
 	l, r = get_lane_points(img)
@@ -125,14 +122,14 @@ def find_lanes(img, left_lane, right_lane):
 	center_lane = np.array([[(left_lane[i][0] + right_lane[i][0])/2, left_lane[i][1]]for i, j in enumerate(left_lane)]).astype(int)
 	
 	'''Draw Lines'''
-	img = draw_lane(img, left_lane, (0, 0, 250))
-	img = draw_lane(img, right_lane, (0, 0, 250))
-	img = draw_lane(img, center_lane, (0, 250, 250))
+	white = np.full_like(img, 0)
+	white = draw_lane(white, left_lane, (1, 1, 250))
+	white = draw_lane(white, right_lane, (1, 1, 250))
+	white = draw_lane(white, center_lane, (1, 250, 250))
 		
-	return img, left_lane, right_lane
+	return white, left_lane, right_lane
 
-
-'''------------Main Program------------'''
+'''
 cap = cv2.VideoCapture('video2.mp4')
 left_lane = np.array([])
 right_lane = np.array([])
@@ -142,7 +139,6 @@ height, width, channels = frame.shape
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi',fourcc, 30.0, (width, height))
 
-'''Start'''
 while cap.isOpened():
 	ret, frame = cap.read()
 	if not ret: break
@@ -157,3 +153,4 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 	
+'''
