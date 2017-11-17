@@ -19,9 +19,7 @@ def preprocess(img):
 	gray = cv2.cvtColor( img, cv2.COLOR_RGB2GRAY )
 	kernel = np.ones((5,5),np.float32)/25
 	gray = cv2.filter2D(gray,-1,kernel)
-	ret, thresh = cv2.threshold(gray,185,255,cv2.THRESH_BINARY)
-	cv2.imshow('thresh', thresh)
-	
+	ret, thresh = cv2.threshold(gray,185,255,cv2.THRESH_BINARY)	
 	return thresh
 
 def draw_lane(img, points, color):
@@ -99,7 +97,7 @@ def get_lane_points(img):
 	
 		height -= step
 
-	return lefts, rights
+	return lefts, rights, thresh
 	
 def find_lanes(img, left_lane, right_lane):
 	'''Variables'''
@@ -107,7 +105,7 @@ def find_lanes(img, left_lane, right_lane):
 	degree = 2
 	
 	'''Get unfiltered lane points'''
-	l, r = get_lane_points(img)
+	l, r, thresh = get_lane_points(img)
 	
 	#img = draw_lane(img, l, (250, 0, 250))
 	#img = draw_lane(img, r, (250, 0, 250))
@@ -127,7 +125,7 @@ def find_lanes(img, left_lane, right_lane):
 	white = draw_lane(white, right_lane, (1, 1, 250))
 	white = draw_lane(white, center_lane, (1, 250, 250))
 		
-	return white, left_lane, right_lane
+	return white, left_lane, right_lane, thresh
 
 '''
 cap = cv2.VideoCapture('video2.mp4')

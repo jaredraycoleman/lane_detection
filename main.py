@@ -11,7 +11,7 @@ height, width, channels = frame.shape
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi',fourcc, 30.0, (width, height))
 out_warped = cv2.VideoWriter('warped.avi',fourcc, 30.0, (width, height))
-out_unwarped = cv2.VideoWriter('unwarped.avi',fourcc, 30.0, (width, height))
+out_thresh = cv2.VideoWriter('thresh.avi',fourcc, 30.0, (width, height))
 
 pts1 = np.float32([[width*0.44,height*0.20], 	#tl
 				   [width*0.56,height*0.20],	#tr
@@ -34,24 +34,25 @@ while cap.isOpened():
 	img = np.copy(frame)
 	#cv2.polylines(img,[draw_pts],True,(0,255,255))
 	warped = cv2.warpPerspective(img,M,(width,height))
-	warped, left_lane, right_lane = lanes.find_lanes(warped, left_lane, right_lane)
+	warped, left_lane, right_lane, thresh = lanes.find_lanes(warped, left_lane, right_lane)
 	unwarped = cv2.warpPerspective(warped,M_prime,(width,height))
 	
 	frame = np.where(unwarped == 0, frame, unwarped)
 	
 	cv2.imshow('original', frame)
 	cv2.imshow('warped', warped)
-	cv2.imshow('unwarped', unwarped)
+	cv2.imshow('thresh', thresh)
+	print(type(thresh))
 	out.write(frame)
 	out_warped.write(warped)
-	out_unwarped.write(unwarped)
+	out_thresh.write(thresh)
 	if cv2.waitKey(1) & 0xFF == ord('q'):
 		break
 
 cap.release()
 out.release()
 out_warped.release()
-out_unwarped.release()
+out_thresh.release()
 cv2.destroyAllWindows()
 
 '''
