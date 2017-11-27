@@ -1,0 +1,6 @@
+video_file=video.mp4
+lane_start_threshold=60
+left_lane_start=30
+right_lane_start=70
+row_step=10
+col_step=3
