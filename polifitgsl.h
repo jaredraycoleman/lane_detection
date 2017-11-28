@@ -6,3 +6,4 @@
 bool polynomialfit(int obs, int degree, 
 		   double *dx, double *dy, double *store); /* n, p */
 #endif
+ 

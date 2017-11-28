@@ -10,21 +10,39 @@ using namespace std;
 
 using namespace cv;
 
-struct Lane
+class Lane
 {
-	Mat left;
-	Mat right;
+public:
+	int degree;
+	double *l_params;
+	double *r_params;
+	
+	Lane(int d) 
+	{ 
+		degree = d; 
+		l_params = new double[d];
+		r_params = new double[d];
+	}
+	
+	~Lane()
+	{
+		delete[] l_params;
+		delete[] r_params;
+	}
 };
 
 struct Config
 {
 	string video_file;
+	int lane_degree;
 	int lane_start_threshold;
 	int left_lane_start;
 	int right_lane_start;
 	int row_step;
 	int col_step;
 };
+
+Config config;
 
 Config getConfig()
 {
@@ -45,6 +63,7 @@ Config getConfig()
 		if( getline(is_line, value) ) 
 		{
 			if (key =="video_file") config.video_file = string(value); 
+			else if (key == "lane_degree") config.lane_degree = stoi(value);
 			else if (key == "lane_start_threshold") config.lane_start_threshold = stoi(value);
 			else if (key == "left_lane_start") config.left_lane_start = stoi(value);
 			else if (key == "right_lane_start") config.right_lane_start = stoi(value);
@@ -63,25 +82,18 @@ void thresh(Mat &img)
 	threshold(img, img, 185, 255, THRESH_BINARY);
 }
 
-void birdseye(Mat &img)
+void birdseye(Mat &img, bool undo=false)
 {
 	int width = img.cols;
 	int height = img.rows;
-	Point2f src[] = {Point2f(width*0.44,height*0.20), Point2f(width*0.56,height*0.20), Point2f(width*1.00,height*0.85), Point2f(width*0.00,height*0.85)};
-	Point2f dst[] = {Point2f(width*0.20,height*0.00), Point2f(width*0.80,height*0.00), Point2f(width*0.80,height*1.00), Point2f(width*0.20,height*1.00)};
-	Mat m = getPerspectiveTransform(src, dst);
+	vector<Point2f> src = {Point2f(width*0.44,height*0.20), Point2f(width*0.56,height*0.20), Point2f(width*1.00,height*0.85), Point2f(width*0.00,height*0.85)};
+	vector<Point2f> dst = {Point2f(width*0.20,height*0.00), Point2f(width*0.80,height*0.00), Point2f(width*0.80,height*1.00), Point2f(width*0.20,height*1.00)};
+	
+	Mat m;
+	if (undo) m = getPerspectiveTransform(&dst[0], &src[0]);
+	else m = getPerspectiveTransform(&src[0], &dst[0]);
 	warpPerspective(img, img, m, Size(width, height));
 }	
-
-void first_person(Mat &img)
-{
-	int width = img.cols;
-	int height = img.rows;
-	Point2f dst[] = {Point2f(width*0.44,height*0.20), Point2f(width*0.56,height*0.20), Point2f(width*1.00,height*0.85), Point2f(width*0.00,height*0.85)};
-	Point2f src[] = {Point2f(width*0.20,height*0.00), Point2f(width*0.80,height*0.00), Point2f(width*0.80,height*1.00), Point2f(width*0.20,height*1.00)};
-	Mat m = getPerspectiveTransform(src, dst);
-	warpPerspective(img, img, m, Size(width, height));
-}
 
 int polynomial(double *params, int degree, double x)
 {
@@ -93,99 +105,85 @@ int polynomial(double *params, int degree, double x)
 	return (int)val;
 }	
 
-Lane getLanes(Mat &img, Config &config)
+Lane getLanes(const Mat &img)
 {
-	birdseye(img);
+	static int row_step = config.row_step;
+	static int col_step = config.col_step;
+	static int d = config.lane_start_threshold;
+	
 	Mat img_thresh = img.clone();
 	thresh(img_thresh);
+	birdseye(img_thresh);
 	int width = img_thresh.cols;
 	int height = img_thresh.rows;
 	
-	int d = config.lane_start_threshold;
 	int left = width * config.left_lane_start / 100;
 	int right = width * config.right_lane_start / 100;
 	
-	Lane lane;
+	Lane lane(config.lane_degree);
+	vector<double> lx;
+	vector<double> rx;
+	vector<double> ly;
+	vector<double> ry;
 	
 	//Loop through frame rows
-	int row_step = config.row_step;
-	int col_step = config.col_step;
 	for (int i = height-1; i >= 0; i-=row_step)
 	{
-		lane.left.push_back(Point(left, i));
+		lx.push_back(left);
+		ly.push_back(i);
 		for (int j = left + d; j >= left - d; j-=col_step)
 		{
 			if (img_thresh.at<uchar>(i, j) == 255) 
 			{
-				lane.left.at<Point>(lane.left.rows - 1).x = j;
+				lx.back() = j;
 				left = j;
 				break;
 			}
 		}
 		
-		lane.right.push_back(Point(right, i));
+		rx.push_back(right);
+		ry.push_back(i);
 		for (int j = right - d; j < right + d; j+=col_step)
 		{
 			if (img_thresh.at<uchar>(i, j) == 255) 
 			{
-				lane.right.at<Point>(lane.right.rows - 1).x = j;
+				rx.back() = j;
 				right = j;
 				break;
 			}
 		}
-		
+		 
 	}
 	
+	polynomialfit(lx.size(), lane.degree, &ly[0], &lx[0], lane.l_params);
+	polynomialfit(rx.size(), lane.degree, &ry[0], &rx[0], lane.r_params);
 	
-	Lane polyLane;
-	int degree = 3;
-	double x[lane.left.rows];
-	double y[lane.left.rows];
-	
-	//left
-	for (int i = 0; i < lane.left.rows; i++)
-	{
-		x[i] = (double)lane.left.at<Point>(i).y;
-		y[i] = (double)lane.left.at<Point>(i).x;
-	}
+	return lane;
+}
 
-	double params[degree];
-	polynomialfit(lane.left.rows, degree, x, y, params);
-	
-	for (int i = 0; i < height; i++)
+void drawLane(Mat &img, const Lane &lane)
+{
+	//draw
+	Mat blank(img.size(), img.type(), Vec3b(0, 0, 0));
+	for (int i = 0; i < img.rows; i++)
 	{
-		polyLane.left.push_back(Point(polynomial(params,degree,i), i));
+		circle(blank, Point(polynomial(lane.l_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3);
+		circle(blank, Point(polynomial(lane.r_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
 	}
-	
-	//right
-	for (int i = 0; i < lane.right.rows; i++)
+	birdseye(blank, true);
+	for (int i = 0; i < img.rows; i++)
 	{
-		x[i] = (double)lane.right.at<Point>(i).y;
-		y[i] = (double)lane.right.at<Point>(i).x;
+		for (int j = 0; j < img.cols; j++)
+		{
+			if (blank.at<Vec3b>(i, j)[0] == 150)
+				circle(img, Point(j, i), 1, Scalar(150, 0, 0), 1);
+		}
 	}
-
-	polynomialfit(lane.right.rows, degree, x, y, params);
-	
-	for (int i = 0; i < height; i++)
-	{
-		polyLane.right.push_back(Point(polynomial(params,degree,i), i));
-	}
-	
-		
-	//cout << lefts.rows << endl;
-	for (int i = 0; i < height; i++)
-	{
-		circle(img, polyLane.left.at<Point>(i), 3, Scalar(150, 0, 0), 3);
-		circle(img, polyLane.right.at<Point>(i), 3, Scalar(150, 0, 0), 3); 
-	}
-	
-	first_person(img);
-	return polyLane;
 }
 
 int main(int argc, char* argv[])
 {
-	Config config = getConfig();
+	config = getConfig();
 		
 	VideoCapture cap(config.video_file); 
     if(!cap.isOpened()) return -1;
@@ -196,8 +194,8 @@ int main(int argc, char* argv[])
     {
 		cap >> frame;
 		//-------------------------------------------------------//
-		Lane lane = getLanes(frame, config);
-		
+		Lane lane = getLanes(frame);
+		drawLane(frame, lane);
 		
 		//-------------------------------------------------------//
 		imshow("output", frame);
