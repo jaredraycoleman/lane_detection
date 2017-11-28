@@ -4,7 +4,9 @@ using namespace std;
 #include <string>
 
 #include "opencv2/opencv.hpp"
-#include "opencv2/core/cuda.hpp"
+//#include "opencv2/core/cuda.hpp"
+
+#include "polifitgsl.h"
 
 using namespace cv;
 
@@ -79,6 +81,16 @@ void first_person(Mat &img)
 	Point2f src[] = {Point2f(width*0.20,height*0.00), Point2f(width*0.80,height*0.00), Point2f(width*0.80,height*1.00), Point2f(width*0.20,height*1.00)};
 	Mat m = getPerspectiveTransform(src, dst);
 	warpPerspective(img, img, m, Size(width, height));
+}
+
+int polynomial(double *params, int degree, double x)
+{
+	double val = 0;
+	for (int i = 0; i < degree; i++)
+	{
+		val += params[i] * pow(x, i);
+	}
+	return (int)val;
 }	
 
 Lane getLanes(Mat &img, Config &config)
@@ -123,19 +135,52 @@ Lane getLanes(Mat &img, Config &config)
 		}
 		
 	}
-		
-	//cout << lefts.rows << endl;
+	
+	
+	Lane polyLane;
+	int degree = 3;
+	double x[lane.left.rows];
+	double y[lane.left.rows];
+	
+	//left
 	for (int i = 0; i < lane.left.rows; i++)
 	{
-		circle(img, lane.left.at<Point>(i), 3, Scalar(150, 0, 0), 3); 
+		x[i] = (double)lane.left.at<Point>(i).y;
+		y[i] = (double)lane.left.at<Point>(i).x;
 	}
+
+	double params[degree];
+	polynomialfit(lane.left.rows, degree, x, y, params);
+	
+	for (int i = 0; i < height; i++)
+	{
+		polyLane.left.push_back(Point(polynomial(params,degree,i), i));
+	}
+	
+	//right
 	for (int i = 0; i < lane.right.rows; i++)
 	{
-		circle(img, lane.right.at<Point>(i), 3, Scalar(150, 0, 0), 3); 
+		x[i] = (double)lane.right.at<Point>(i).y;
+		y[i] = (double)lane.right.at<Point>(i).x;
+	}
+
+	polynomialfit(lane.right.rows, degree, x, y, params);
+	
+	for (int i = 0; i < height; i++)
+	{
+		polyLane.right.push_back(Point(polynomial(params,degree,i), i));
+	}
+	
+		
+	//cout << lefts.rows << endl;
+	for (int i = 0; i < height; i++)
+	{
+		circle(img, polyLane.left.at<Point>(i), 3, Scalar(150, 0, 0), 3);
+		circle(img, polyLane.right.at<Point>(i), 3, Scalar(150, 0, 0), 3); 
 	}
 	
 	first_person(img);
-	return lane;
+	return polyLane;
 }
 
 int main(int argc, char* argv[])
@@ -152,6 +197,8 @@ int main(int argc, char* argv[])
 		cap >> frame;
 		//-------------------------------------------------------//
 		Lane lane = getLanes(frame, config);
+		
+		
 		//-------------------------------------------------------//
 		imshow("output", frame);
 		if(waitKey(1) >= 0) break;
