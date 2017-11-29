@@ -5,6 +5,8 @@ using namespace std;
 
 #include "opencv2/opencv.hpp"
 //#include "opencv2/core/cuda.hpp"
+#include "thrust/device_vector.h"
+#include "thrust/host_vector.h"
 
 #include "polifitgsl.h"
 
@@ -121,10 +123,10 @@ Lane getLanes(const Mat &img)
 	int right = width * config.right_lane_start / 100;
 	
 	Lane lane(config.lane_degree);
-	vector<double> lx;
-	vector<double> rx;
-	vector<double> ly;
-	vector<double> ry;
+	thrust::device_vector<double> lx;
+	thrust::device_vector<double> rx;
+	thrust::device_vector<double> ly;
+	thrust::device_vector<double> ry;
 	
 	//Loop through frame rows
 	for (int i = height-1; i >= 0; i-=row_step)
@@ -195,7 +197,7 @@ int main(int argc, char* argv[])
 		cap >> frame;
 		//-------------------------------------------------------//
 		Lane lane = getLanes(frame);
-		drawLane(frame, lane);
+		//drawLane(frame, lane);
 		
 		//-------------------------------------------------------//
 		imshow("output", frame);
