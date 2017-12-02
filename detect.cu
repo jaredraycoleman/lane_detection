@@ -2,6 +2,7 @@ using namespace std;
 
 #include <fstream>
 #include <string>
+#include <cmath>
 
 #include "opencv2/opencv.hpp"
 #include "opencv2/gpu/gpu.hpp"
@@ -12,18 +13,27 @@ using namespace std;
 
 using namespace cv;
 
+
 class Lane
 {
 public:
 	int degree;
 	double *l_params;
 	double *r_params;
+	double filter;
 	
-	Lane(int d) 
+	Lane(int d, double f) 
 	{ 
 		degree = d; 
 		l_params = new double[d];
 		r_params = new double[d];
+		filter = f;
+		
+		for(int i = 0; i < d; i++)
+		{
+			l_params[i] = nan("1");
+			r_params[i] = nan("1");
+		}
 	}
 	
 	~Lane()
@@ -31,12 +41,33 @@ public:
 		delete[] l_params;
 		delete[] r_params;
 	}
+	
+	void update(double *l_new, double *r_new)
+	{
+		if (l_params[0] != l_params[0])
+		{
+			for (int i = 0; i < degree; i++)
+			{
+				l_params[i] = l_new[i];
+				r_params[i] = r_new[i];
+			}
+		}
+		else
+		{
+			for (int i = 0; i < degree; i++)
+			{
+				l_params[i] = filter * l_params[i] + (1 - filter) * l_new[i];
+				r_params[i] = filter * r_params[i] + (1 - filter) * r_new[i];
+			}
+		}
+	}
 };
 
 struct Config
 {
 	string video_file;
 	int lane_degree;
+	double lane_filter;
 	int lane_start_threshold;
 	int left_lane_start;
 	int right_lane_start;
@@ -66,6 +97,7 @@ Config getConfig()
 		{
 			if (key =="video_file") config.video_file = string(value); 
 			else if (key == "lane_degree") config.lane_degree = stoi(value);
+			else if (key == "lane_filter") config.lane_filter = stod(value);
 			else if (key == "lane_start_threshold") config.lane_start_threshold = stoi(value);
 			else if (key == "left_lane_start") config.left_lane_start = stoi(value);
 			else if (key == "right_lane_start") config.right_lane_start = stoi(value);
@@ -117,7 +149,7 @@ int polynomial(double *params, int degree, double x)
 	return (int)val;
 }	
 
-Lane getLanes(const Mat &img)
+void getLanes(const Mat &img, Lane &lane)
 {
 	static int row_step = config.row_step;
 	static int col_step = config.col_step;
@@ -132,7 +164,6 @@ Lane getLanes(const Mat &img)
 	int left = width * config.left_lane_start / 100;
 	int right = width * config.right_lane_start / 100;
 	
-	Lane lane(config.lane_degree);
 	/*
 	thrust::device_vector<double> lx;
 	thrust::device_vector<double> rx;
@@ -173,10 +204,11 @@ Lane getLanes(const Mat &img)
 		 
 	}
 	
-	polynomialfit(lx.size(), lane.degree, &ly[0], &lx[0], lane.l_params);
-	polynomialfit(rx.size(), lane.degree, &ry[0], &rx[0], lane.r_params);
-	
-	return lane;
+	double *l_new = new double[lane.degree];
+	double *r_new = new double[lane.degree];
+	polynomialfit(lx.size(), lane.degree, &ly[0], &lx[0], l_new);
+	polynomialfit(rx.size(), lane.degree, &ry[0], &rx[0], r_new);
+	lane.update(l_new, r_new);
 }
 
 void drawLane(Mat &img, const Lane &lane)
@@ -189,9 +221,9 @@ void drawLane(Mat &img, const Lane &lane)
 		circle(blank, Point(polynomial(lane.r_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
 	}
 	birdseye(blank, true);
-	for (int i = 0; i < img.rows; i+=10)
+	for (int i = 0; i < img.rows; i+=2)
 	{
-		for (int j = 0; j < img.cols; j+=10)
+		for (int j = 0; j < img.cols; j+=2)
 		{
 			if (blank.at<Vec3b>(i, j)[0] == 150)
 				circle(img, Point(j, i), 1, Scalar(150, 0, 0), 1);
@@ -202,6 +234,7 @@ void drawLane(Mat &img, const Lane &lane)
 int main(int argc, char* argv[])
 {
 	config = getConfig();
+    Lane lane(config.lane_degree, config.lane_filter);
 		
 	VideoCapture cap(config.video_file); 
     if(!cap.isOpened()) return -1;
@@ -212,7 +245,7 @@ int main(int argc, char* argv[])
     {
 		cap >> frame;
 		//-------------------------------------------------------//
-		Lane lane = getLanes(frame);
+		getLanes(frame, lane);
 		drawLane(frame, lane);
 		
 		//-------------------------------------------------------//

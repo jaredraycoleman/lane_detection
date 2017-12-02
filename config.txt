@@ -1,5 +1,6 @@
 video_file=video.mp4
 lane_degree=3
+lane_filter=0.9
 lane_start_threshold=60
 left_lane_start=30
 right_lane_start=70
