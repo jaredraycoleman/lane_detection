@@ -1,8 +1,12 @@
+/**
+ * Provides function to fit a polynomial curve to a set of data.
+ * Source: https://rosettacode.org/wiki/Polynomial_regression#C
+ */
+
 #include "polifitgsl.h"
 
- 
 bool polynomialfit(int obs, int degree, 
-		   double *dx, double *dy, double *store) /* n, p */
+		   const double *dx, const double *dy, double *store) /* n, p */
 {
   gsl_multifit_linear_workspace *ws;
   gsl_matrix *cov, *X;

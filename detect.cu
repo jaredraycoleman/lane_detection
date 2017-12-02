@@ -1,3 +1,12 @@
+/**
+ * Detect.cu
+ * Provides functions for lane detection
+ * 
+ * @author Oscar Morales Ponce
+ * @author Jared Coleman
+ * @version 1.0 12/02/17
+ */
+
 using namespace std;
 
 #include <fstream>
@@ -13,44 +22,42 @@ using namespace std;
 
 using namespace cv;
 
-
+/**
+ * Class implements a lane
+ */
 class Lane
 {
 public:
-	int degree;
-	double *l_params;
-	double *r_params;
-	double filter;
+	int degree; //degree of polynomial that defines lanes
+	vector<double> l_params; //array of size degree. Defines coefficients for left lane curve.
+	vector<double> r_params; //array of size degree. Defines coefficients for right lane curve.
+	double filter; //filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
 	
-	Lane(int d, double f) 
+	/**
+	 * Only provided constructor for Lane.
+	 * @param degree Degree of polynomial that defines lanes.
+	 * @param filter Filter for curve to remove jitter.
+	 */ 
+	Lane(int degree, double filter = 0.9) 
+		: degree(degree)
+		, l_params(vector<double>(degree, (double)nan("1")))
+		, r_params(vector<double>(degree, (double)nan("1")))
+		, filter(filter)
 	{ 
-		degree = d; 
-		l_params = new double[d];
-		r_params = new double[d];
-		filter = f;
-		
-		for(int i = 0; i < d; i++)
-		{
-			l_params[i] = nan("1");
-			r_params[i] = nan("1");
-		}
+		if (this->filter < 0.0 || this->filter > 1.0) this->filter = 0.9;
 	}
 	
-	~Lane()
-	{
-		delete[] l_params;
-		delete[] r_params;
-	}
-	
-	void update(double *l_new, double *r_new)
+	/**
+	 * Updates left and right lane polynomial coefficients.
+	 * @param l_new Array of size degree. Defines coefficients for left lane curve.
+	 * @param r_new Array of size degree. Defines coefficients for right lane curve.
+	 */
+	void update(vector<double> l_new, vector<double> r_new)
 	{
 		if (l_params[0] != l_params[0])
 		{
-			for (int i = 0; i < degree; i++)
-			{
-				l_params[i] = l_new[i];
-				r_params[i] = r_new[i];
-			}
+			l_params = l_new;
+			r_params = r_new;
 		}
 		else
 		{
@@ -63,20 +70,28 @@ public:
 	}
 };
 
+/**
+ * Defines configuration parameter provided by config.txt
+ */
 struct Config
 {
-	string video_file;
-	int lane_degree;
-	double lane_filter;
-	int lane_start_threshold;
-	int left_lane_start;
-	int right_lane_start;
-	int row_step;
-	int col_step;
+	string video_file; // video file to read
+	int lane_degree; // degree of polynomial that defines lanes
+	double lane_filter; // filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
+	int lane_start_threshold; // +/- pixel threshold to look for lane. 
+	int left_lane_start; // percentage of width to start looking for left lane
+	int right_lane_start; // percentage of width to start looking for right lane
+	int row_step; // stride for stepping through image rows
+	int col_step; // stride for stepping through image columns
 };
 
+//Configuration
 Config config;
 
+/**
+ * Reads configuration file and sets configuration parameters.
+ * @return Data structure of configuration parameters
+ */
 Config getConfig()
 {
 	Config config;
@@ -109,6 +124,14 @@ Config getConfig()
 	return config;
 }
 
+/**
+ * Thresholds the image. Uses GPU acceleration.
+ * Process:
+ *   1. Convert image to grayscale
+ *   2. Blur the image to remove noise (gaussian)
+ *   3. threshold image (binary)
+ * @param img Image to threshold
+ */
 void thresh(Mat &img)
 {
 	gpu::GpuMat g1;
@@ -122,6 +145,11 @@ void thresh(Mat &img)
 	g2.download(img);
 }
 
+/**
+ * Converts an image to/from birdseye view)
+ * @param img Image to convert
+ * @param undo If true, convert to birdseye. If false, convert from birdseye.
+ */
 void birdseye(Mat &img, bool undo=false)
 {
 	int width = img.cols;
@@ -139,7 +167,14 @@ void birdseye(Mat &img, bool undo=false)
 	g2.download(img);
 }	
 
-int polynomial(double *params, int degree, double x)
+/**
+ * Evaluates a polynomial expression.
+ * @param params Array of polynomial coefficients.
+ * @param degree Degree of polynomial (size of params).
+ * @param x Polynomial input.
+ * @return Evaluated expression.
+ */
+int polynomial(const double *params, int degree, double x)
 {
 	double val = 0;
 	for (int i = 0; i < degree; i++)
@@ -149,6 +184,11 @@ int polynomial(double *params, int degree, double x)
 	return (int)val;
 }	
 
+/**
+ * Get lanes
+ * @param img Frame from video.
+ * @param lane Detected lane.
+ */
 void getLanes(const Mat &img, Lane &lane)
 {
 	static int row_step = config.row_step;
@@ -164,20 +204,15 @@ void getLanes(const Mat &img, Lane &lane)
 	int left = width * config.left_lane_start / 100;
 	int right = width * config.right_lane_start / 100;
 	
-	/*
-	thrust::device_vector<double> lx;
-	thrust::device_vector<double> rx;
-	thrust::device_vector<double> ly;
-	thrust::device_vector<double> ry;
-	* */
 	vector<double> lx;
 	vector<double> rx;
 	vector<double> ly;
 	vector<double> ry;
 	
-	//Loop through frame rows
+	//Loop through frame rows at row_step
 	for (int i = height-1; i >= 0; i-=row_step)
 	{
+		//Loop through left side
 		lx.push_back(left);
 		ly.push_back(i);
 		for (int j = left + d; j >= left - d; j-=col_step)
@@ -190,6 +225,7 @@ void getLanes(const Mat &img, Lane &lane)
 			}
 		}
 		
+		//Loop through right side
 		rx.push_back(right);
 		ry.push_back(i);
 		for (int j = right - d; j < right + d; j+=col_step)
@@ -204,21 +240,26 @@ void getLanes(const Mat &img, Lane &lane)
 		 
 	}
 	
-	double *l_new = new double[lane.degree];
-	double *r_new = new double[lane.degree];
-	polynomialfit(lx.size(), lane.degree, &ly[0], &lx[0], l_new);
-	polynomialfit(rx.size(), lane.degree, &ry[0], &rx[0], r_new);
+	vector<double> l_new(lane.degree, 0.0);
+	vector<double> r_new(lane.degree, 0.0);
+	polynomialfit(lx.size(), lane.degree, &ly[0], &lx[0], &l_new[0]);
+	polynomialfit(rx.size(), lane.degree, &ry[0], &rx[0], &r_new[0]);
+	
 	lane.update(l_new, r_new);
 }
 
+/**
+ * Draws lane on an image.
+ * @param img Image on which to draw lane.
+ * @param lane Lane to draw.
+ */
 void drawLane(Mat &img, const Lane &lane)
 {
-	//draw
 	Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
 	for (int i = 0; i < img.rows; i++)
 	{
-		circle(blank, Point(polynomial(lane.l_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3);
-		circle(blank, Point(polynomial(lane.r_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
+		circle(blank, Point(polynomial(&(lane.l_params)[0], lane.degree, i), i), 3, Scalar(150, 0, 0), 3);
+		circle(blank, Point(polynomial(&(lane.r_params)[0], lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
 	}
 	birdseye(blank, true);
 	for (int i = 0; i < img.rows; i+=2)
