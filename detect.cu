@@ -4,7 +4,7 @@ using namespace std;
 #include <string>
 
 #include "opencv2/opencv.hpp"
-//#include "opencv2/core/cuda.hpp"
+#include "opencv2/gpu/gpu.hpp"
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
 
@@ -79,9 +79,15 @@ Config getConfig()
 
 void thresh(Mat &img)
 {
-	cvtColor(img, img, CV_BGR2GRAY);
-	GaussianBlur( img, img, Size( 7, 7 ), 1.5, 1.5 );
-	threshold(img, img, 185, 255, THRESH_BINARY);
+	gpu::GpuMat g1;
+	gpu::GpuMat g2;
+	
+	g1.upload(img);
+	gpu::cvtColor(g1, g2, CV_BGR2GRAY);
+	
+	gpu::GaussianBlur(g2, g2, Size( 7, 7 ), 1.5, 1.5 );
+	gpu::threshold(g2, g2, 185, 255, THRESH_BINARY);
+	g2.download(img);
 }
 
 void birdseye(Mat &img, bool undo=false)
@@ -94,7 +100,11 @@ void birdseye(Mat &img, bool undo=false)
 	Mat m;
 	if (undo) m = getPerspectiveTransform(&dst[0], &src[0]);
 	else m = getPerspectiveTransform(&src[0], &dst[0]);
-	warpPerspective(img, img, m, Size(width, height));
+	
+	gpu::GpuMat g1(img);
+	gpu::GpuMat g2;
+	warpPerspective(g1, g2, m, Size(width, height));
+	g2.download(img);
 }	
 
 int polynomial(double *params, int degree, double x)
@@ -123,10 +133,16 @@ Lane getLanes(const Mat &img)
 	int right = width * config.right_lane_start / 100;
 	
 	Lane lane(config.lane_degree);
+	/*
 	thrust::device_vector<double> lx;
 	thrust::device_vector<double> rx;
 	thrust::device_vector<double> ly;
 	thrust::device_vector<double> ry;
+	* */
+	vector<double> lx;
+	vector<double> rx;
+	vector<double> ly;
+	vector<double> ry;
 	
 	//Loop through frame rows
 	for (int i = height-1; i >= 0; i-=row_step)
@@ -166,16 +182,16 @@ Lane getLanes(const Mat &img)
 void drawLane(Mat &img, const Lane &lane)
 {
 	//draw
-	Mat blank(img.size(), img.type(), Vec3b(0, 0, 0));
+	Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
 	for (int i = 0; i < img.rows; i++)
 	{
 		circle(blank, Point(polynomial(lane.l_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3);
 		circle(blank, Point(polynomial(lane.r_params, lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
 	}
 	birdseye(blank, true);
-	for (int i = 0; i < img.rows; i++)
+	for (int i = 0; i < img.rows; i+=10)
 	{
-		for (int j = 0; j < img.cols; j++)
+		for (int j = 0; j < img.cols; j+=10)
 		{
 			if (blank.at<Vec3b>(i, j)[0] == 150)
 				circle(img, Point(j, i), 1, Scalar(150, 0, 0), 1);
@@ -197,7 +213,7 @@ int main(int argc, char* argv[])
 		cap >> frame;
 		//-------------------------------------------------------//
 		Lane lane = getLanes(frame);
-		//drawLane(frame, lane);
+		drawLane(frame, lane);
 		
 		//-------------------------------------------------------//
 		imshow("output", frame);
