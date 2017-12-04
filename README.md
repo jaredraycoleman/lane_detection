@@ -1,4 +1,4 @@
-#Jetson TX2 Lane Detection
+# Jetson TX2 Lane Detection
 Lane detection for the Nvidia Jetson TX2 using OpenCV4Tegra
 
 ## Table of Contents
