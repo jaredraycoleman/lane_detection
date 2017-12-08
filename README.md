@@ -3,11 +3,11 @@ Lane detection for the Nvidia Jetson TX2 using OpenCV4Tegra
 
 ## Table of Contents
 
-1. [Dependencies](#implementation)
+1. [Dependencies](#dependencies)
 2. [Usage](#usage)
 3. [Configurations](#configurations)
 
-## DEPENDENCIES
+## Dependencies
 Requires a Jetson TX2 running L4T 28.1 (JetPack 3.1)
 
 Use install_depend.sh to install the following dependencies:
