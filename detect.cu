@@ -38,7 +38,7 @@ public:
 	 * @param degree Degree of polynomial that defines lanes.
 	 * @param filter Filter for curve to remove jitter.
 	 */ 
-	Lane(int degree, double filter = 0.9) 
+	Lane(int degree, double filter = 0.5) 
 		: degree(degree)
 		, l_params(vector<double>(degree, (double)nan("1")))
 		, r_params(vector<double>(degree, (double)nan("1")))
@@ -89,7 +89,7 @@ struct Config
 Config config;
 
 /**
- * Reads configuration file and sets configuration parameters.
+ * Reads configuration file and sets configuration parameters
  * @return Data structure of configuration parameters
  */
 Config getConfig()
@@ -125,32 +125,12 @@ Config getConfig()
 }
 
 /**
- * Thresholds the image. Uses GPU acceleration.
- * Process:
- *   1. Convert image to grayscale
- *   2. Blur the image to remove noise (gaussian)
- *   3. threshold image (binary)
- * @param img Image to threshold
+ * Gets the perpective transform matrix for warping an image to birdseye perspective
+ * @param img Image to generate matrix for
+ * @param undo If undo is true, return the matrix for transforming from birdseye to first-person perspective
+ * @return perspective transform matrix
  */
-void thresh(Mat &img)
-{
-	gpu::GpuMat g1;
-	gpu::GpuMat g2;
-	
-	g1.upload(img);
-	gpu::cvtColor(g1, g2, CV_BGR2GRAY);
-	
-	gpu::GaussianBlur(g2, g2, Size( 7, 7 ), 1.5, 1.5 );
-	gpu::threshold(g2, g2, 185, 255, THRESH_BINARY);
-	g2.download(img);
-}
-
-/**
- * Converts an image to/from birdseye view)
- * @param img Image to convert
- * @param undo If true, convert to birdseye. If false, convert from birdseye.
- */
-void birdseye(Mat &img, bool undo=false)
+Mat getTransformMatrix(Mat img, bool undo=false)
 {
 	int width = img.cols;
 	int height = img.rows;
@@ -160,18 +140,31 @@ void birdseye(Mat &img, bool undo=false)
 	Mat m;
 	if (undo) m = getPerspectiveTransform(&dst[0], &src[0]);
 	else m = getPerspectiveTransform(&src[0], &dst[0]);
-	
-	gpu::GpuMat g1(img);
-	gpu::GpuMat g2;
-	warpPerspective(g1, g2, m, Size(width, height));
-	g2.download(img);
-}	
+	return m;
+}
 
 /**
- * Evaluates a polynomial expression.
- * @param params Array of polynomial coefficients.
- * @param degree Degree of polynomial (size of params).
- * @param x Polynomial input.
+ * Thresholds the image. Uses GPU acceleration
+ * Process:
+ *   1. Convert image to grayscale
+ *   2. Blur the image to remove noise (gaussian)
+ *   3. threshold image (binary)
+ * @param src image to threshold (GpuMat)
+ * @param dst destination for thresholded image (GpuMat)
+ */
+void thresh(gpu::GpuMat &src, gpu::GpuMat &dst)
+{
+	gpu::cvtColor(src, dst, CV_BGR2GRAY);
+	
+	gpu::GaussianBlur(dst, dst, Size( 7, 7 ), 1.5, 1.5 );
+	gpu::threshold(dst, dst, 185, 255, THRESH_BINARY);
+}
+
+/**
+ * Evaluates a polynomial expression
+ * @param params Array of polynomial coefficients
+ * @param degree Degree of polynomial (size of params)
+ * @param x Polynomial input
  * @return Evaluated expression.
  */
 int polynomial(const double *params, int degree, double x)
@@ -186,8 +179,8 @@ int polynomial(const double *params, int degree, double x)
 
 /**
  * Get lanes
- * @param img Frame from video.
- * @param lane Detected lane.
+ * @param img processed (thresholded and warped to birdseye perpective) frame from video
+ * @param lane Detected lane
  */
 void getLanes(const Mat &img, Lane &lane)
 {
@@ -195,11 +188,8 @@ void getLanes(const Mat &img, Lane &lane)
 	static int col_step = config.col_step;
 	static int d = config.lane_start_threshold;
 	
-	Mat img_thresh = img.clone();
-	thresh(img_thresh);
-	birdseye(img_thresh);
-	int width = img_thresh.cols;
-	int height = img_thresh.rows;
+	int width = img.cols;
+	int height = img.rows;
 	
 	int left = width * config.left_lane_start / 100;
 	int right = width * config.right_lane_start / 100;
@@ -217,7 +207,7 @@ void getLanes(const Mat &img, Lane &lane)
 		ly.push_back(i);
 		for (int j = left + d; j >= left - d; j-=col_step)
 		{
-			if (img_thresh.at<uchar>(i, j) == 255) 
+			if (img.at<uchar>(i, j) == 255) 
 			{
 				lx.back() = j;
 				left = j;
@@ -230,7 +220,7 @@ void getLanes(const Mat &img, Lane &lane)
 		ry.push_back(i);
 		for (int j = right - d; j < right + d; j+=col_step)
 		{
-			if (img_thresh.at<uchar>(i, j) == 255) 
+			if (img.at<uchar>(i, j) == 255) 
 			{
 				rx.back() = j;
 				right = j;
@@ -249,11 +239,12 @@ void getLanes(const Mat &img, Lane &lane)
 }
 
 /**
- * Draws lane on an image.
- * @param img Image on which to draw lane.
- * @param lane Lane to draw.
+ * Draws lane on an image
+ * @param img Image on which to draw lane
+ * @param lane Lane to draw
+ * @param m perspective transform matrix for lane
  */
-void drawLane(Mat &img, const Lane &lane)
+void drawLane(Mat &img, const Lane &lane, Mat &m)
 {
 	Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
 	for (int i = 0; i < img.rows; i++)
@@ -261,7 +252,7 @@ void drawLane(Mat &img, const Lane &lane)
 		circle(blank, Point(polynomial(&(lane.l_params)[0], lane.degree, i), i), 3, Scalar(150, 0, 0), 3);
 		circle(blank, Point(polynomial(&(lane.r_params)[0], lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
 	}
-	birdseye(blank, true);
+	warpPerspective(blank, blank, m, Size(img.cols, img.rows));
 	for (int i = 0; i < img.rows; i+=2)
 	{
 		for (int j = 0; j < img.cols; j+=2)
@@ -280,17 +271,37 @@ int main(int argc, char* argv[])
 	VideoCapture cap(config.video_file); 
     if(!cap.isOpened()) return -1;
     
-    namedWindow("output", 1);
+    //namedWindow("output", 1);
     Mat frame;
+    cap >> frame;
+	Mat birdseye = getTransformMatrix(frame);
+	Mat first_person = getTransformMatrix(frame, true);
+    
+    gpu::GpuMat src;
+	gpu::GpuMat th;
+	gpu::GpuMat dst;
     while(true)
     {
+		//get frame from stream
 		cap >> frame;
-		//-------------------------------------------------------//
-		getLanes(frame, lane);
-		drawLane(frame, lane);
+		
+		//copy of original frame for drawing
+		Mat original = frame.clone();
+		
+		//preprocess img
+		src.upload(frame);
+		thresh(src, th);
+		gpu::warpPerspective(th, dst, birdseye, Size(frame.cols, frame.rows));
+		dst.download(frame);
+	
+		//Get lanes
+		//getLanes(frame, lane);
+		
+		//draw lanes
+		//drawLane(original, lane, first_person);
 		
 		//-------------------------------------------------------//
-		imshow("output", frame);
+		//imshow("output", original);
 		if(waitKey(1) >= 0) break;
 	}
 }
