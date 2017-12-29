@@ -280,31 +280,38 @@ int main(int argc, char* argv[])
     cv::Mat src;
 	cv::Mat th;
 	cv::Mat dst;
-    while(true)
+    bool cont = true;
+    while(cont)
     {
-		//get frame from stream
-		cap >> frame;
-		
-		//copy of original frame for drawing
-		Mat original = frame.clone();
-		
-        //TODO PROBABLY DON'T NEED THESE EXTRA MATS SINCE NO LONGER USING GPU.UPLOAD
-		//preprocess img
-        frame.copyTo(src);
-		//src.upload(frame);
-		thresh(src, th);
-		cv::warpPerspective(th, dst, birdseye, Size(frame.cols, frame.rows));
-        dst.copyTo(frame);
-		//dst.download(frame);
-	
-		//Get lanes
-		//getLanes(frame, lane);
-		
-		//draw lanes
-		//drawLane(original, lane, first_person);
-		
-		//-------------------------------------------------------//
-		//imshow("output", original);
-		if(waitKey(1) >= 0) break;
+        try{
+
+                //get frame from stream
+                cap >> frame;
+                
+                //copy of original frame for drawing
+                Mat original = frame.clone();
+                
+                //TODO PROBABLY DON'T NEED THESE EXTRA MATS SINCE NO LONGER USING GPU.UPLOAD
+                //preprocess img
+                //frame.copyTo(src);
+                //src.upload(frame);
+                thresh(frame, th);
+                cv::warpPerspective(th, dst, birdseye, Size(frame.cols, frame.rows));
+                //dst.copyTo(frame);
+                //dst.download(frame);
+            
+                //Get lanes
+                getLanes(dst, lane);
+                
+                //draw lanes
+                drawLane(original, lane, first_person);
+                
+                //-------------------------------------------------------//
+                imshow("output", original);
+                if(waitKey(1) >= 0) break;
+        }catch(cv::Exception e){
+                cout << e.what() << endl; 
+                cont = false;
+        }
 	}
 }
