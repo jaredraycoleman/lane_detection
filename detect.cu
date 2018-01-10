@@ -103,23 +103,26 @@ Config getConfig()
 	string line;
 	while( getline(is_file, line) )
 	{
-	  istringstream is_line(line);
-	  string key;
-	  if( getline(is_line, key, '=') )
-	  {
-		string value;
-		if( getline(is_line, value) ) 
+		std::string::iterator end_pos = std::remove(line.begin(), line.end(), ' ');
+		line.erase(end_pos, line.end());
+	
+		istringstream is_line(line);
+		string key;
+		if( getline(is_line, key, '=') )
 		{
-			if (key =="video_file") config.video_file = string(value); 
-			else if (key == "lane_degree") config.lane_degree = stoi(value);
-			else if (key == "lane_filter") config.lane_filter = stod(value);
-			else if (key == "lane_start_threshold") config.lane_start_threshold = stoi(value);
-			else if (key == "left_lane_start") config.left_lane_start = stoi(value);
-			else if (key == "right_lane_start") config.right_lane_start = stoi(value);
-			else if (key == "row_step") config.row_step = stoi(value);
-			else if (key == "col_step") config.col_step = stoi(value);
+			string value;
+			if( getline(is_line, value) ) 
+			{
+				if (key =="video_file") config.video_file = string(value); 
+				else if (key == "lane_degree") config.lane_degree = stoi(value);
+				else if (key == "lane_filter") config.lane_filter = stod(value);
+				else if (key == "lane_start_threshold") config.lane_start_threshold = stoi(value);
+				else if (key == "left_lane_start") config.left_lane_start = stoi(value);
+				else if (key == "right_lane_start") config.right_lane_start = stoi(value);
+				else if (key == "row_step") config.row_step = stoi(value);
+				else if (key == "col_step") config.col_step = stoi(value);
+			}
 		}
-	  }
 	}
 	return config;
 }
