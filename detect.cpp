@@ -205,12 +205,19 @@ void getLanes(const Mat &img, Lane &lane)
 		//Loop through left side
 		lx.push_back(left);
 		ly.push_back(i);
-		for (int j = left + d; j >= left - d; j-=col_step)
+		for (int j = 0; j <= d; j+=col_step)
 		{
-			if (img.at<uchar>(i, j) == 255) 
+			if (img.at<uchar>(i, left+j) == 255) 
 			{
-				lx.back() = j;
-				left = j;
+				lx.back() = left+j;
+				left += j;
+				break;
+			}
+			
+			if (img.at<uchar>(i, left-j) == 255) 
+			{
+				lx.back() = left-j;
+				left -= j;
 				break;
 			}
 		}
@@ -218,12 +225,19 @@ void getLanes(const Mat &img, Lane &lane)
 		//Loop through right side
 		rx.push_back(right);
 		ry.push_back(i);
-		for (int j = right - d; j < right + d; j+=col_step)
+		for (int j = 0; j <= d; j+=col_step)
 		{
-			if (img.at<uchar>(i, j) == 255) 
+			if (img.at<uchar>(i, right-j) == 255) 
 			{
-				rx.back() = j;
-				right = j;
+				rx.back() = right-j;
+				right -= j;
+				break;
+			}
+			
+			if (img.at<uchar>(i, right+j) == 255) 
+			{
+				rx.back() = right+j;
+				right += j;
 				break;
 			}
 		}
