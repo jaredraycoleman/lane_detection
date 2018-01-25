@@ -32,6 +32,7 @@ public:
 	vector<double> l_params; //array of size degree. Defines coefficients for left lane curve.
 	vector<double> r_params; //array of size degree. Defines coefficients for right lane curve.
 	double filter; //filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
+	double curvature; //positive curvature is right, negative is left
 	
 	/**
 	 * Only provided constructor for Lane.
@@ -67,9 +68,10 @@ public:
 				r_params[i] = filter * r_params[i] + (1 - filter) * r_new[i];
 			}
 		}
+		
+		curvature = (l_params[2] + r_params[2]) / 2;
 	}
 };
-
 /**
  * Defines configuration parameter provided by config.txt
  */
