@@ -4,6 +4,7 @@ option(CUDA_GPU "USING GPU" OFF)
 find_package(OpenCV REQUIRED)
 find_package(GSL REQUIRED)
 
+
 set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
@@ -21,4 +22,4 @@ else()
     add_library(detect detect.cpp polifitgsl.cpp)
 endif()
 
-target_link_libraries(detect SHARED ${OpenCV_LIBS} ${GSL_LIBRARY} ${GSL_CBLAS_LIBRARY})
+target_link_libraries(detect SHARED ${OpenCV_LIBS} ${GSL_LIBRARY} ${GSL_CBLAS_LIBRARY} libconfig++)
