@@ -23,54 +23,6 @@ using namespace std;
 using namespace cv;
 
 /**
- * Class implements a lane
- */
-class Lane
-{
-public:
-	int degree; //degree of polynomial that defines lanes
-	vector<double> l_params; //array of size degree. Defines coefficients for left lane curve.
-	vector<double> r_params; //array of size degree. Defines coefficients for right lane curve.
-	double filter; //filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
-	
-	/**
-	 * Only provided constructor for Lane.
-	 * @param degree Degree of polynomial that defines lanes.
-	 * @param filter Filter for curve to remove jitter.
-	 */ 
-	Lane(int degree, double filter = 0.5) 
-		: degree(degree)
-		, l_params(vector<double>(degree, (double)nan("1")))
-		, r_params(vector<double>(degree, (double)nan("1")))
-		, filter(filter)
-	{ 
-		if (this->filter < 0.0 || this->filter > 1.0) this->filter = 0.9;
-	}
-	
-	/**
-	 * Updates left and right lane polynomial coefficients.
-	 * @param l_new Array of size degree. Defines coefficients for left lane curve.
-	 * @param r_new Array of size degree. Defines coefficients for right lane curve.
-	 */
-	void update(vector<double> l_new, vector<double> r_new)
-	{
-		if (l_params[0] != l_params[0])
-		{
-			l_params = l_new;
-			r_params = r_new;
-		}
-		else
-		{
-			for (int i = 0; i < degree; i++)
-			{
-				l_params[i] = filter * l_params[i] + (1 - filter) * l_new[i];
-				r_params[i] = filter * r_params[i] + (1 - filter) * r_new[i];
-			}
-		}
-	}
-};
-
-/**
  * Defines configuration parameter provided by config.txt
  */
 struct Config
@@ -83,6 +35,9 @@ struct Config
 	int right_lane_start; // percentage of width to start looking for right lane
 	int row_step; // stride for stepping through image rows
 	int col_step; // stride for stepping through image columns
+	double k;
+	string serial_port;
+	int baud;
 };
 
 //Configuration
@@ -118,6 +73,9 @@ Config getConfig()
 			else if (key == "right_lane_start") config.right_lane_start = stoi(value);
 			else if (key == "row_step") config.row_step = stoi(value);
 			else if (key == "col_step") config.col_step = stoi(value);
+			else if (key == "k") config.col_step = stod(value);
+			else if (key == "serial_port") config.col_step = string(value);
+			else if (key == "baud") config.col_step = stoi(value);
 		}
 	  }
 	}
@@ -230,10 +188,10 @@ void getLanes(const Mat &img, Lane &lane)
 		 
 	}
 	
-	vector<double> l_new(lane.degree, 0.0);
-	vector<double> r_new(lane.degree, 0.0);
-	polynomialfit(lx.size(), lane.degree, &ly[0], &lx[0], &l_new[0]);
-	polynomialfit(rx.size(), lane.degree, &ry[0], &rx[0], &r_new[0]);
+	vector<double> l_new(lane.getN(), 0.0);
+	vector<double> r_new(lane.getN(), 0.0);
+	polynomialfit(lx.size(), lane.getN(), &ly[0], &lx[0], &l_new[0]);
+	polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
 	
 	lane.update(l_new, r_new);
 }
@@ -249,8 +207,7 @@ void drawLane(Mat &img, const Lane &lane, Mat &m)
 	Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
 	for (int i = 0; i < img.rows; i++)
 	{
-		circle(blank, Point(polynomial(&(lane.l_params)[0], lane.degree, i), i), 3, Scalar(150, 0, 0), 3);
-		circle(blank, Point(polynomial(&(lane.r_params)[0], lane.degree, i), i), 3, Scalar(150, 0, 0), 3); 
+		circle(blank, Point(polynomial(&(lane.params)[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
 	}
 	warpPerspective(blank, blank, m, Size(img.cols, img.rows));
 	for (int i = 0; i < img.rows; i+=2)
@@ -262,11 +219,25 @@ void drawLane(Mat &img, const Lane &lane, Mat &m)
 		}
 	}
 }
+ 
+void sendMessage(int8_t angle)
+{
+    UARTCommand command1, command2;
+    command1.speed = 0;
+    command1.wheelOrientation = angle;
+    command1.maxTime = 100;
+    command1.orientation= 0;
+    serial->sendCommand(&command1);
+ 
+}
 
 int main(int argc, char* argv[])
 {
 	config = getConfig();
     Lane lane(config.lane_degree, config.lane_filter);
+    
+    SerialCommunication *serial = new SerialCommunication ("/dev/ttyACM0", 115200);
+    serial->run();
 		
 	VideoCapture cap(config.video_file); 
     if(!cap.isOpened()) return -1;
@@ -299,6 +270,9 @@ int main(int argc, char* argv[])
 		
 		//draw lanes
 		//drawLane(original, lane, first_person);
+		
+		//send lane
+		sendMessage((int)(onfig.k*lane.curvature()));
 		
 		//-------------------------------------------------------//
 		//imshow("output", original);

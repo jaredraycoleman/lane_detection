@@ -6,3 +6,6 @@ left_lane_start=30
 right_lane_start=70
 row_step=10
 col_step=3
+k=40000
+serial_port=/dev/ttyACM0
+baud=115200
