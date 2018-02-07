@@ -12,6 +12,7 @@ using namespace std;
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <libconfig.h++>
 
 #include "opencv2/opencv.hpp"
 #include "opencv2/gpu/gpu.hpp"
@@ -22,64 +23,66 @@ using namespace std;
 
 using namespace cv;
 
-/**
- * Defines configuration parameter provided by config.txt
- */
-struct Config
+class Detector
 {
-	string video_file; // video file to read
-	int lane_degree; // degree of polynomial that defines lanes
-	double lane_filter; // filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
-	int lane_start_threshold; // +/- pixel threshold to look for lane. 
-	int left_lane_start; // percentage of width to start looking for left lane
-	int right_lane_start; // percentage of width to start looking for right lane
-	int row_step; // stride for stepping through image rows
-	int col_step; // stride for stepping through image columns
-	double k;
-	string serial_port;
-	int baud;
-};
-
-//Configuration
-Config config;
+	int threshold;	
+	int row_step;
+	int col_step;
+	int l_start;
+	int r_start;
+	
+	Detector(int threshold, int row_step, int col_step, int l_start, int r_start)
+		:threshold(threshold)
+		, row_step(row_step)
+		, col_step(col_step)
+		, l_start(l_start)
+		, r_start(r_start)
+	{
+	}
+}
 
 /**
  * Reads configuration file and sets configuration parameters
  * @return Data structure of configuration parameters
  */
-Config getConfig()
+bool getConfig(string path, Lane *lane, SerialCommunication *serial, VideoCapture *cap, Detector *detector, double *k)
 {
-	Config config;
+	Config cfg;
 	
-	ifstream ifs("config.txt");
-	istringstream is_file(string((std::istreambuf_iterator<char>(ifs)),
-                 std::istreambuf_iterator<char>()));
-
-	string line;
-	while( getline(is_file, line) )
+	// Read the file. If there is an error, report it and exit.
+	try
 	{
-	  istringstream is_line(line);
-	  string key;
-	  if( getline(is_line, key, '=') )
-	  {
-		string value;
-		if( getline(is_line, value) ) 
-		{
-			if (key =="video_file") config.video_file = string(value); 
-			else if (key == "lane_degree") config.lane_degree = stoi(value);
-			else if (key == "lane_filter") config.lane_filter = stod(value);
-			else if (key == "lane_start_threshold") config.lane_start_threshold = stoi(value);
-			else if (key == "left_lane_start") config.left_lane_start = stoi(value);
-			else if (key == "right_lane_start") config.right_lane_start = stoi(value);
-			else if (key == "row_step") config.row_step = stoi(value);
-			else if (key == "col_step") config.col_step = stoi(value);
-			else if (key == "k") config.col_step = stod(value);
-			else if (key == "serial_port") config.col_step = string(value);
-			else if (key == "baud") config.col_step = stoi(value);
-		}
-	  }
+	cfg.readFile(path);
 	}
-	return config;
+	catch(const FileIOException &fioex)
+	{
+	std::cerr << "I/O error while reading file." << std::endl;
+	return false;
+	}
+	catch(const ParseException &pex)
+	{
+	std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+			  << " - " << pex.getError() << std::endl;
+	return false;
+	}
+	
+	try
+	{
+		lane = new Lane(cfg.lookup("lane.n"), cfg.lookup("lane.filter"));
+		serial = new SerialCommunication(cfg.lookup("serial.port"), cfg.lookup("serial.baud"));
+		cap = new VideoCapture(cfg.lookup("video.file"));
+		detector = new Detector(cfg.lookup("detector.threshold"), cfg.lookup("detector.row_step"), 
+								cfg.lookup("detector.col_step"), cfg.lookup("detector.start.left"), 
+								cfg.lookup("detector.start.right"));
+		k = cfg.lookup("controller.k");
+	}
+	catch(const SettingNotFoundException &nfex)
+	{
+		cerr << "Invalid config file" << endl;
+		return false;
+	}
+	
+	cout << "Config file parsed successfully" << endl;
 }
 
 /**
@@ -140,7 +143,7 @@ int polynomial(const double *params, int degree, double x)
  * @param img processed (thresholded and warped to birdseye perpective) frame from video
  * @param lane Detected lane
  */
-void getLanes(const Mat &img, Lane &lane)
+void getLanes(const Mat &img, Lane *lane)
 {
 	static int row_step = config.row_step;
 	static int col_step = config.col_step;
@@ -188,12 +191,12 @@ void getLanes(const Mat &img, Lane &lane)
 		 
 	}
 	
-	vector<double> l_new(lane.getN(), 0.0);
-	vector<double> r_new(lane.getN(), 0.0);
-	polynomialfit(lx.size(), lane.getN(), &ly[0], &lx[0], &l_new[0]);
-	polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
+	vector<double> l_new(lane->getN(), 0.0);
+	vector<double> r_new(lane->getN(), 0.0);
+	polynomialfit(lx.size(), lane->getN(), &ly[0], &lx[0], &l_new[0]);
+	polynomialfit(rx.size(), lane->getN(), &ry[0], &rx[0], &r_new[0]);
 	
-	lane.update(l_new, r_new);
+	lane->update(l_new, r_new);
 }
 
 /**
@@ -202,12 +205,12 @@ void getLanes(const Mat &img, Lane &lane)
  * @param lane Lane to draw
  * @param m perspective transform matrix for lane
  */
-void drawLane(Mat &img, const Lane &lane, Mat &m)
+void drawLane(Mat &img, const Lane *lane, Mat &m)
 {
 	Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
 	for (int i = 0; i < img.rows; i++)
 	{
-		circle(blank, Point(polynomial(&(lane.params)[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
+		circle(blank, Point(polynomial(&(lane->params)[0], lane->getN(), i), i), 3, Scalar(150, 0, 0), 3);
 	}
 	warpPerspective(blank, blank, m, Size(img.cols, img.rows));
 	for (int i = 0; i < img.rows; i+=2)
@@ -220,7 +223,7 @@ void drawLane(Mat &img, const Lane &lane, Mat &m)
 	}
 }
  
-void sendMessage(int8_t angle)
+void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
     command1.speed = 0;
@@ -233,18 +236,31 @@ void sendMessage(int8_t angle)
 
 int main(int argc, char* argv[])
 {
-	config = getConfig();
-    Lane lane(config.lane_degree, config.lane_filter);
-    
-    SerialCommunication *serial = new SerialCommunication ("/dev/ttyACM0", 115200);
+	if (argc < 2)
+	{
+		cout << "Usage: " << argv[0] << " <config file>" << endl;
+		return 0;
+	}
+	
+	Lane *lane;
+	SerialCommunication *serial;
+	VideoCapture *cap;
+	Detector *detector;
+	double *k;
+	
+	if (getConfig(argv[1], lane, serial, cap, detector, k))
+	{
+		cout << argv[1] << " is not a valid config file" << endl;
+		return 0;
+	}
+	
     serial->run();
 		
-	VideoCapture cap(config.video_file); 
-    if(!cap.isOpened()) return -1;
+    if(!cap->isOpened()) return -1;
     
     //namedWindow("output", 1);
     Mat frame;
-    cap >> frame;
+    *cap >> frame;
 	Mat birdseye = getTransformMatrix(frame);
 	Mat first_person = getTransformMatrix(frame, true);
     
@@ -254,7 +270,7 @@ int main(int argc, char* argv[])
     while(true)
     {
 		//get frame from stream
-		cap >> frame;
+		*cap >> frame;
 		
 		//copy of original frame for drawing
 		Mat original = frame.clone();
@@ -272,7 +288,7 @@ int main(int argc, char* argv[])
 		//drawLane(original, lane, first_person);
 		
 		//send lane
-		sendMessage((int)(onfig.k*lane.curvature()));
+		sendMessage(serial, (int)(k * lane->curvature()));
 		
 		//-------------------------------------------------------//
 		//imshow("output", original);
