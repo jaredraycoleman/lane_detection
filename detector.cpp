@@ -3,6 +3,8 @@ using namespace std;
 #include "detector.h"
 #include "polifitgsl.h"
 
+#include <libconfig.h++>
+
 using namespace cv;
 
 //-----CLASS METHOD DECLARATIONS-----//
@@ -11,14 +13,22 @@ int polynomial(const double *params, int degree, double x);
 
 //-----CLASS METHODS-----//
 
-Detector::Detector(int threshold, int row_step, int col_step, int l_start, int r_start)
-        : threshold(threshold)
-        , row_step(row_step)
-        , col_step(col_step)
-        , l_start(l_start)
-        , r_start(r_start)
+Detector::Detector(string config_path)
 {
-
+    libconfig::Config cfg;
+    try
+    {
+        cfg.readFile(config_path.c_str());
+        threshold = cfg.lookup("detector.threshold");
+        row_step = cfg.lookup("detector.row_step");
+        col_step = cfg.lookup("detector.col_step");
+        l_start = cfg.lookup("detector.start.left");
+        r_start = cfg.lookup("detector.start.right");
+    }
+    catch(...)
+    {
+        cerr << "Invalid config file" << endl;
+    }
 }
 
 /**

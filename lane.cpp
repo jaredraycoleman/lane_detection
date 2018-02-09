@@ -1,16 +1,28 @@
 #include "lane.h"
 
+#include <libconfig.h++>
+#include <iostream>
+
 /**
  * Only provided constructor for Lane.
  * @param degree Degree of polynomial that defines lanes.
  * @param filter Filter for curve to remove jitter.
  */ 
-Lane::Lane(int n, double filter = 0.9)
-    : n(n)
-    , params(std::vector<double>(n, (double)nan("1")))
-    , filter(filter)
+Lane::Lane(std::string config_path)
 { 
-    if (this->filter < 0.0 || this->filter > 1.0) this->filter = 0.9;
+    libconfig::Config cfg;
+    try
+    {
+        cfg.readFile(config_path.c_str());
+        n = cfg.lookup("lane.n");
+        filter = cfg.lookup("lane.filter");
+        params = std::vector<double>(n, (double)nan("1"));
+    }
+    catch(...)
+    {
+        std::cerr << "Invalid config file" << std::endl;
+    }
+    if (filter < 0.0 || filter > 1.0) filter = 0.9;
 }
 
 /**

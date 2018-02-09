@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cmath>
+#include <string>
 
 class Lane
 {
@@ -14,7 +15,7 @@ private:
     double width;
 
 public:
-    Lane(int degree, double filter);
+    Lane(std::string config_path);
     
     int getN();
     std::vector<double> getParams();
