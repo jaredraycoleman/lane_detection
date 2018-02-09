@@ -29,7 +29,7 @@ SerialCommunication::SerialCommunication(const std::string& devname, unsigned in
 SerialCommunication::~SerialCommunication()
 {
       if(!isOpen()) return;    
-	port.close();
+    port.close();
 
 }
 
@@ -72,23 +72,23 @@ void SerialCommunication::receiveData(unsigned char c)
         {
             case UartWaitForFirstStart:
                 if (c == UART_FIRST_BYTE)
-		{
-		    
+        {
+            
                     rxUartState = UartWaitForSecondStart;
 // 		    printf("UART_FIRST_BYTE\n");
-		}
+        }
                 break;
             case UartWaitForSecondStart:
                 if (c == UART_SECOND_BYTE)
-		{
+        {
 // 		    printf("UART_SECOND_BYTE\n");
                     rxUartState = UartWaitForLenght;
-		}
+        }
                 else
-		{
+        {
                     rxUartState = UartWaitForFirstStart;
 // 		   printf("UART_FIRST_BYTE\n");
-		}
+        }
                 break;
             case UartWaitForLenght:
                 if (sizeof(UARTData) == c)
@@ -100,10 +100,10 @@ void SerialCommunication::receiveData(unsigned char c)
 // 		    printf("uartData %d\n", lenght);
                 }
                 else
-		{
+        {
                     rxUartState = UartWaitForFirstStart;
 // 		    printf("UART_FIRST_BYTE\n");
-		}
+        }
                 break;
             case UartWaitForData:
                 if (iByte < lenght)
@@ -144,7 +144,7 @@ void SerialCommunication::writeCommand(unsigned char *data, unsigned char size)
     unsigned ch = 0;
     for (int i=0; i<size; i++, data++)
     {
-	ch = (ch + *data) % 256;
+    ch = (ch + *data) % 256;
     }
     buff[0] = ch;
     buff[1] = '\r';
@@ -179,22 +179,22 @@ void SerialCommunication::execute()
       memset(bufffer, 0, sizeof(UARTData)+5);
       while(true)
       {
-	  mutex.lock();
-	  if (queue.size() > 0)
-	  {
-	      UARTCommand command = queue.front();
-	      writeCommand((unsigned char *)&command, sizeof(UARTCommand));
-	      queue.pop();
-	  }
-	  mutex.unlock();
-	  std::size_t size = boost::asio::read(port, boost::asio::buffer(bufffer, sizeof(UARTData)+5));
-	  
-	  for (i=0; i<size; i++)
-	  {
-	      receiveData(bufffer[i]);
-	  }
-	      
-	  memset(bufffer, 0, sizeof(UARTData)+5);
+      mutex.lock();
+      if (queue.size() > 0)
+      {
+          UARTCommand command = queue.front();
+          writeCommand((unsigned char *)&command, sizeof(UARTCommand));
+          queue.pop();
+      }
+      mutex.unlock();
+      std::size_t size = boost::asio::read(port, boost::asio::buffer(bufffer, sizeof(UARTData)+5));
+      
+      for (i=0; i<size; i++)
+      {
+          receiveData(bufffer[i]);
+      }
+          
+      memset(bufffer, 0, sizeof(UARTData)+5);
       }
 }
       

@@ -9,6 +9,6 @@
 #include <stdbool.h>
 #include <math.h>
 bool polynomialfit(int obs, int degree, 
-		   const double *dx, const double *dy, double *store); /* n, p */
+        const double *dx, const double *dy, double *store); /* n, p */
 #endif
  

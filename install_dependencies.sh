@@ -1,5 +1,5 @@
-echo "Assumes all libraries that come with the L4T 28.1 jetpack are installed"
-read -p "Press enter to continue"
+read -p "Various packages will be installed to your system. Press enter to continue."
 
-sudo apt-get install libgsl-dev libconfig++8-dev
+sudo apt-get install libgsl-dev libconfig++8-dev cmake sudo apt-get install libboost-all-dev libopencv-dev python-opencv
+
 
