@@ -18,13 +18,15 @@ private:
     int col_step;
     int l_start;
     int r_start;
+    Mat matrix_transform_birdseye;
+    Mat matrix_transform_fiperson;
+    
+    Mat getTransformMatrix(Mat img, bool undo=false);
 
 public:
     Detector(string config_path);
     void getLanes(const Mat &img, Lane &lane);
-    void drawLane(Mat &img, Lane &lane, Mat &m);
-    Mat getTransformMatrix(Mat img, bool undo=false);
-    void thresh(cv::Mat &src, cv::Mat &dst);
+    void drawLane(Mat &img, Lane &lane);
 };
 
 #endif

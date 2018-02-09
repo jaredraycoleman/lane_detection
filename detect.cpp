@@ -19,6 +19,16 @@ using namespace std;
 #include "detector.h"
 
 using namespace cv;
+   
+void sendMessage(SerialCommander *serial, int8_t angle)
+{
+    UARTCommand command1, command2;
+    command1.speed = 0;
+    command1.wheelOrientation = angle;
+    command1.maxTime = 100;
+    command1.orientation= 0;
+    serial->sendCommand(&command1);
+}
 
 int main(int argc, char* argv[])
 {
@@ -51,7 +61,7 @@ int main(int argc, char* argv[])
     }
     
     VideoCapture cap(video_path);
-    //SerialCommunication serial(serial_port, serial_baud);
+    SerialCommunication serial(serial_port, serial_baud);
     Lane lane(config_path);
     Detector detector(config_path);
     
@@ -60,11 +70,6 @@ int main(int argc, char* argv[])
     namedWindow("output", 1);
     Mat frame;
     cap >> frame;
-    Mat birdseye = detector.getTransformMatrix(frame);
-    Mat first_person = detector.getTransformMatrix(frame, true);
-    
-    cv::Mat th;
-    cv::Mat dst;
     
     while(true)
     {
@@ -72,22 +77,16 @@ int main(int argc, char* argv[])
         {
             //get frame from stream
             cap >> frame;
-            
-            //copy of original frame for drawing
-            Mat original = frame.clone();
-            
-            //preprocess img
-            detector.thresh(frame, th);
-            cv::warpPerspective(th, dst, birdseye, Size(frame.cols, frame.rows));
-            
-            //Get lanes
-            detector.getLanes(dst, lane);
+            detector.getLanes(frame, lane);
             
             //draw lanes
-            detector.drawLane(original, lane, first_person);
+            detector.drawLane(frame, lane);
             
-            //show image//
-            imshow("output", original);
+            //sends message
+            sendMessage(&serial, k*lane.getCurvature());
+            
+            //show image
+            imshow("output", frame);
             if(waitKey(1) >= 0) break;
         }
         catch(cv::Exception e)

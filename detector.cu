@@ -2,6 +2,9 @@ using namespace std;
 
 #include "detector.h"
 #include "polifitgsl.h"
+#include "opencv2/gpu/gpu.hpp"
+#include "thrust/device_vector.h"
+#include "thrust/host_vector.h"
 
 #include <libconfig.h++>
 
