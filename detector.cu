@@ -51,12 +51,15 @@ Detector::Detector(string config_path)
  */
 void Detector::getLanes(const Mat &img, Lane &lane)
 {                
-    Mat th;
+    gpu::GpuMat gpu_image;
+    gpu::GpuMat th;
+    gpu::GpuMat warped;
     Mat dst;
-    Mat frame = img.clone();
     
-    thresh(frame, th);
-    cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
+    src.upload(img)
+    thresh(src, th);
+    gpu::warpPerspective(th, warped, matrix_transform_birdseye, Size(img.cols, img.rows));
+    warped.download(dst);
     
     int width = dst.cols;
     int height = dst.rows;
@@ -170,21 +173,13 @@ Mat Detector::getTransformMatrix(Mat img, bool undo)
 
 //-----NON CLASS METHODS-----//
 
-/**
- * Thresholds the image. Uses GPU acceleration
- * Process:
- *   1. Convert image to grayscale
- *   2. Blur the image to remove noise (gaussian)
- *   3. threshold image (binary)
- * @param src image to threshold (GpuMat)
- * @param dst destination for thresholded image (GpuMat)
- */
-void thresh(cv::Mat &src, cv::Mat &dst)
+
+void thresh(gpu::GpuMat &src, gpu::GpuMat &dst)
 {
-    cv::cvtColor(src, dst, CV_BGR2GRAY);
+    gpu::cvtColor(src, dst, CV_BGR2GRAY);
     
-    cv::GaussianBlur(dst, dst, Size( 7, 7 ), 1.5, 1.5 );
-    cv::threshold(dst, dst, 185, 255, THRESH_BINARY);
+    gpu::GaussianBlur(dst, dst, Size( 7, 7 ), 1.5, 1.5 );
+    gpu::threshold(dst, dst, 185, 255, THRESH_BINARY);
 }
 
 /**
