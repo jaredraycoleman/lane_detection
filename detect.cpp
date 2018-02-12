@@ -20,7 +20,7 @@ using namespace std;
 
 using namespace cv;
    
-void sendMessage(SerialCommander *serial, int8_t angle)
+void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
     command1.speed = 0;
@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
     }
     
     VideoCapture cap(video_path);
-    SerialCommunication serial(serial_port, serial_baud);
+    //SerialCommunication serial(serial_port, serial_baud);
     Lane lane(config_path);
     Detector detector(config_path);
     
@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
             detector.drawLane(frame, lane);
             
             //sends message
-            sendMessage(&serial, k*lane.getCurvature());
+            //sendMessage(&serial, k*lane.getCurvature());
             
             //show image
             imshow("output", frame);
