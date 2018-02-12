@@ -22,7 +22,7 @@ if(JETSON_TX2)
         -O3 -lineinfo
         -gencode=arch=compute_62,code=sm_62
     )
-    cuda_add_executable(detect detect.cpp detector.cu lane.cpp polifitgsl.cpp uartcommander.cpp)
+    cuda_add_executable(detect detect.cpp detector.cu lane.cpp polifitgsl.cpp uartcommander.cpp OPTIONS -std=c++11)
 else()
     add_executable(detect detect.cpp detector.cpp lane.cpp polifitgsl.cpp uartcommander.cpp) 
 endif()

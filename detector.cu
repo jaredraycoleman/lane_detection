@@ -3,8 +3,8 @@ using namespace std;
 #include "detector.h"
 #include "polifitgsl.h"
 #include "opencv2/gpu/gpu.hpp"
-#include "thrust/device_vector.h"
-#include "thrust/host_vector.h"
+//#include "thrust/device_vector.h"
+//#include "thrust/host_vector.h"
 
 #include <libconfig.h++>
 
@@ -13,7 +13,7 @@ using namespace cv;
 //-----CLASS METHOD DECLARATIONS-----//
 
 int polynomial(const double *params, int degree, double x);
-void thresh(cv::Mat &src, cv::Mat &dst);
+void thresh(gpu::GpuMat &src, gpu::GpuMat &dst);
 
 //-----CLASS METHODS-----//
 
@@ -51,13 +51,13 @@ Detector::Detector(string config_path)
  */
 void Detector::getLanes(const Mat &img, Lane &lane)
 {                
-    gpu::GpuMat gpu_image;
+    gpu::GpuMat gpu_img;
     gpu::GpuMat th;
     gpu::GpuMat warped;
     Mat dst;
     
-    src.upload(img)
-    thresh(src, th);
+    gpu_img.upload(img);
+    thresh(gpu_img, th);
     gpu::warpPerspective(th, warped, matrix_transform_birdseye, Size(img.cols, img.rows));
     warped.download(dst);
     
