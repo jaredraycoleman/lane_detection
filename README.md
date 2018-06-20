@@ -21,11 +21,11 @@ Use install_depend.sh to install the following dependencies:
 ```
 
 ```bash
-    ./install_depend.sh #installs all dependencies
+    ./install_dependencies.sh #installs all dependencies
 ```
 
 ```bash
-    bin/detect.cu       #runs executable using config.txt configurations
+    bin/detect       #runs executable using config.txt configurations
 ```
 
 ## Configurations
