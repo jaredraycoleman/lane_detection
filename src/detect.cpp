@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
             detector.drawLane(frame, lane);
             
             //sends message
-            //sendMessage(&serial, k*lane.getCurvature());
+            //sendMessage(&serial, lane.getSteeringAngle());
             
             //show image
             imshow("output", frame);

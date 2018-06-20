@@ -13,6 +13,7 @@ private:
     double filter; //filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
     double curvature; //positive curvature is right, negative is left
     double width;
+    double camera_height;
 
 public:
     Lane(std::string config_path);
@@ -22,6 +23,7 @@ public:
     double getFilter();
     double getCurvature();
     double getWidth();
+    double getSteeringAngle();
     
     void update(std::vector<double> l, std::vector<double> r);
     
