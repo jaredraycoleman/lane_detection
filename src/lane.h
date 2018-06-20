@@ -8,12 +8,13 @@
 class Lane
 {
 private:
-    int n; //number of parameters that define the lane (degree + 1)
+    int n;  //number of parameters that define the lane (degree + 1)
     std::vector<double> params; //array of size degree. Defines coefficients for left lane curve.
     double filter; //filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
     double curvature; //positive curvature is right, negative is left
     double width;
     double camera_height;
+    double vehicle_length;
 
 public:
     Lane(std::string config_path);

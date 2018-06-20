@@ -21,6 +21,7 @@ Lane::Lane(std::string config_path)
         filter = cfg.lookup("lane.filter");
         params = std::vector<double>(n, (double)nan("1"));
         camera_height = cfg.lookup("camera.height");
+        vehicle_length = cfg.lookup("vehicle.length");
     }
     catch(...)
     {
@@ -78,12 +79,12 @@ double derivative(std::vector<double> params, double x)
 double Lane::getSteeringAngle()
 {
     double y_pos = (double)camera_height;
-    double x_pos = polynomial(params, params.size(), y_pos);
+    double x_pos = polynomial(params, y_pos);
     double m_pos = PI/2 + 0.001;
     double b_pos = m_pos*x_pos - y_pos;
 
     double y_des = camera_height-100;
-    double x_des = polynomial(params, params.size(), y_des);
+    double x_des = polynomial(params, y_des);
     double m_des = derivative(params, y_des);
     double b_des = m_des*x_des - y_des;
 
@@ -96,7 +97,7 @@ double Lane::getSteeringAngle()
         double radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
         //std::cout << "radius: " << radius << std::endl;
 
-        steering_angle = atan2(L, radius);
+        steering_angle = atan2(vehicle_length, radius);
     }
 
     //std::cout << "steering_angle: " << steering_angle * 180 / PI << std::endl;
