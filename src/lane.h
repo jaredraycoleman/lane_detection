@@ -24,7 +24,8 @@ public:
     double getFilter();
     double getCurvature();
     double getWidth();
-    double getSteeringAngle();
+    vector<double> AckermannSteering();
+    vector<double> DifferentialSteering();
     
     void update(std::vector<double> l, std::vector<double> r);
     

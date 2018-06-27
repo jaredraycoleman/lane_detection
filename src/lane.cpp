@@ -22,6 +22,7 @@ Lane::Lane(std::string config_path)
         params = std::vector<double>(n, (double)nan("1"));
         camera_height = cfg.lookup("camera.height");
         vehicle_length = cfg.lookup("vehicle.length");
+        vehicle_width = cfg.lookup("vehicle.width")
     }
     catch(...)
     {
@@ -61,6 +62,14 @@ double Lane::getCurvature() { return this->params[2]; }
 double Lane::getWidth() { return this->width; }
 
 
+// TODO: Put polynomial and derivative in helper file
+// TODO: Put steering angle in vehicle class
+
+/**
+ * Evaluates a polynomial 
+ * @param params vector of polynomial's coefficients, from lowest degree to highest
+ * @param x value at which to evaluate polynomial at
+ */
 double polynomial(std::vector<double> params, double x)
 {
     double val = 0;
@@ -71,13 +80,30 @@ double polynomial(std::vector<double> params, double x)
     return val;
 }
 
-double derivative(std::vector<double> params, double x)
+/**
+ * Evaluates the derivative of a second degree polynomial 
+ * @param params vector of polynomial's coefficients, from lowest degree to highest
+ * @return vector of derivative polynomial coefficients
+ */
+double derivative(std::vector<double> params)
 {
-    return params[1] + params[2]*x*2;
+    assert(params.size() == 3);
+    vector<double> deriv(params.size()-1);
+    for (int i = 1; i < params.size(); i++)
+    {
+        deriv.push_back(params[i] * (double)i);
+    }
+
+    return deriv;
 }
 
-double Lane::getSteeringAngle()
+/**
+ * Calculates the turning radius of the vehicle
+ * @return Turning radius of vehcile
+ */
+double Lane::getTurningRadius()
 {
+    
     double y_pos = (double)camera_height;
     double x_pos = polynomial(params, y_pos);
     double m_pos = PI/2 + 0.001;
@@ -85,22 +111,53 @@ double Lane::getSteeringAngle()
 
     double y_des = camera_height-100;
     double x_des = polynomial(params, y_des);
-    double m_des = derivative(params, y_des);
+    double m_des = polynomial(derivative(params), y_des);
     double b_des = m_des*x_des - y_des;
 
-    double steering_angle = 0;
+    double radius = 0;
     if (m_pos != m_des)
     {
         double x_center = (b_pos - b_des) / (m_des - m_pos);
         double y_center = m_pos * x_center + b_pos;
 
         double radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
-        //std::cout << "radius: " << radius << std::endl;
+    }
+    return radius;
+}
 
-        steering_angle = atan2(vehicle_length, radius);
+/**
+ * Calculate the ackermann steering angle for vehcile
+ * @returns two-element vector (left and right wheel) of steering angles
+ */
+vector<double> Lane::AckermannSteering()
+{
+    double radius = this->getTurningRadius();
+
+    vector<double> steering_angle{0, 0};
+    if (radius != 0)
+    {
+        steering_angle[0] = atan2(vehicle_length, radius + (vehicle_width/2));
+        steering_angle[1] = atan2(vehicle_length, radius + (vehicle_width/2));
     }
 
-    //std::cout << "steering_angle: " << steering_angle * 180 / PI << std::endl;
+    return steering_angle;
+}
+
+/**
+ * Calculate the differential steering velocities for vehcile
+ * @returns two-element vector (left and right wheel) of steering velocities 
+ */
+vector<double> Lane::DifferentialSteering(double speed)
+{
+    double radius = this->getTurningRadius();
+
+    vector<double> differential{0, 0};
+    if (radius != 0)
+    {
+        double temp = vehicle_width / (2 * radius);
+        differential.at(0) = speed * (1 + temp);
+        differential.at(1) = speed * (1 - temp);
+    }
 
     return steering_angle;
 }
