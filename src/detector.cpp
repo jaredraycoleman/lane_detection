@@ -25,14 +25,20 @@ Detector::Detector(string config_path)
         col_step = cfg.lookup("detector.col_step");
         l_start = cfg.lookup("detector.start.left");
         r_start = cfg.lookup("detector.start.right");
-        
+
+        double cam_angle = cfg.lookup("camera.angle");
+        int frame_width = cfg.lookup("camera.frame.width");
+        int frame_height = cfg.lookup("camera.frame.height");
+        int frame_floor = cfg.lookup("camera.frame.floor");
+        int frame_ceiling = cfg.lookup("camera.frame.ceiling");
+
         string path = cfg.lookup("video.file");
         VideoCapture cap(path);
         Mat frame;
         cap >> frame;
         
-        matrix_transform_birdseye = getTransformMatrix(frame);
-        matrix_transform_fiperson = getTransformMatrix(frame, true);
+        matrix_transform_birdseye = getTransformMatrix(cam_angle, frame_width, frame_height, frame_floor, frame_ceiling);
+        matrix_transform_fiperson = getTransformMatrix(cam_angle, frame_width, frame_height, frame_floor, frame_ceiling, true);
         cap.release();
     }
     catch(...)
@@ -61,10 +67,10 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     int left = width * l_start / 100;
     int right = width * r_start / 100;
     
-    vector<double> lx;
-    vector<double> rx;
-    vector<double> ly;
-    vector<double> ry;
+    std::vector<double> lx;
+    std::vector<double> rx;
+    std::vector<double> ly;
+    std::vector<double> ry;
     
     //Loop through frame rows at row_step
     for (int i = height-1; i >= 0; i-=row_step)
@@ -111,8 +117,8 @@ void Detector::getLanes(const Mat &img, Lane &lane)
          
     }
     
-    vector<double> l_new(lane.getN(), 0.0);
-    vector<double> r_new(lane.getN(), 0.0);
+    std::vector<double> l_new(lane.getN(), 0.0);
+    std::vector<double> r_new(lane.getN(), 0.0);
     polynomialfit(lx.size(), lane.getN(), &ly[0], &lx[0], &l_new[0]);
     polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
     
@@ -151,12 +157,12 @@ void Detector::drawLane(Mat &img, Lane &lane)
  * @param undo If undo is true, return the matrix for transforming from birdseye to first-person perspective
  * @return perspective transform matrix
  */
-Mat Detector::getTransformMatrix(Mat img, bool undo)
+Mat Detector::getTransformMatrix(double angle, int width, int height, int floor, int ceiling, bool undo)
 {
-    int width = img.cols;
-    int height = img.rows;
-    vector<Point2f> src = {Point2f(width*0.44,height*0.20), Point2f(width*0.56,height*0.20), Point2f(width*1.00,height*0.85), Point2f(width*0.00,height*0.85)};
-    vector<Point2f> dst = {Point2f(width*0.20,height*0.00), Point2f(width*0.80,height*0.00), Point2f(width*0.80,height*1.00), Point2f(width*0.20,height*1.00)};
+    int left = (int)(ceiling / tan(angle));
+    int right = (int)(width / 2.0 + width / 2.0 - left);
+    std::vector<Point2f> src = {Point2f(0.0, ceiling), Point2f(width, ceiling), Point2f(width, floor), Point2f(0.0, floor)};
+    std::vector<Point2f> dst = {Point2f(0.0, 0.0), Point2f(width, 0.0), Point2f(right, height), Point2f(left, height)};
     
     Mat m;
     if (undo) m = getPerspectiveTransform(&dst[0], &src[0]);

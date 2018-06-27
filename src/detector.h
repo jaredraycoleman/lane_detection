@@ -7,6 +7,7 @@ using namespace std;
 #include "lane.h"
 
 #include <string>
+#include <cmath>
 
 using namespace cv;
 
@@ -20,8 +21,14 @@ private:
     int r_start;
     Mat matrix_transform_birdseye;
     Mat matrix_transform_fiperson;
+
+    double cam_angle;
+    int frame_width;
+    int frame_height;
+    int frame_floor;
+    int frame_ceiling;
     
-    Mat getTransformMatrix(Mat img, bool undo=false);
+    Mat getTransformMatrix(double angle, int width, int height, int floor, int ceiling, bool undo=false);
 
 public:
     Detector(string config_path);
