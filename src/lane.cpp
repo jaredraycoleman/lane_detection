@@ -3,6 +3,8 @@
 #include <libconfig.h++>
 #include <iostream>
 
+#include <assert.h>
+
 #define PI 3.141592653589793238462643383279502884
 
 
@@ -22,7 +24,7 @@ Lane::Lane(std::string config_path)
         params = std::vector<double>(n, (double)nan("1"));
         camera_height = cfg.lookup("camera.height");
         vehicle_length = cfg.lookup("vehicle.length");
-        vehicle_width = cfg.lookup("vehicle.width")
+        vehicle_width = cfg.lookup("vehicle.width");
     }
     catch(...)
     {
@@ -85,10 +87,10 @@ double polynomial(std::vector<double> params, double x)
  * @param params vector of polynomial's coefficients, from lowest degree to highest
  * @return vector of derivative polynomial coefficients
  */
-double derivative(std::vector<double> params)
+std::vector<double> derivative(std::vector<double> params)
 {
     assert(params.size() == 3);
-    vector<double> deriv(params.size()-1);
+    std::vector<double> deriv(params.size()-1);
     for (int i = 1; i < params.size(); i++)
     {
         deriv.push_back(params[i] * (double)i);
@@ -129,11 +131,11 @@ double Lane::getTurningRadius()
  * Calculate the ackermann steering angle for vehcile
  * @returns two-element vector (left and right wheel) of steering angles
  */
-vector<double> Lane::AckermannSteering()
+std::vector<double> Lane::AckermannSteering()
 {
     double radius = this->getTurningRadius();
 
-    vector<double> steering_angle{0, 0};
+    std::vector<double> steering_angle{0, 0};
     if (radius != 0)
     {
         steering_angle[0] = atan2(vehicle_length, radius + (vehicle_width/2));
@@ -147,11 +149,11 @@ vector<double> Lane::AckermannSteering()
  * Calculate the differential steering velocities for vehcile
  * @returns two-element vector (left and right wheel) of steering velocities 
  */
-vector<double> Lane::DifferentialSteering(double speed)
+std::vector<double> Lane::DifferentialSteering(double speed)
 {
     double radius = this->getTurningRadius();
 
-    vector<double> differential{0, 0};
+    std::vector<double> differential{0, 0};
     if (radius != 0)
     {
         double temp = vehicle_width / (2 * radius);
@@ -159,5 +161,5 @@ vector<double> Lane::DifferentialSteering(double speed)
         differential.at(1) = speed * (1 - temp);
     }
 
-    return steering_angle;
+    return differential;
 }

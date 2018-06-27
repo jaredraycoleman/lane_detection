@@ -83,9 +83,9 @@ int main(int argc, char* argv[])
             detector.drawLane(frame, lane);
             
             //sends message
-            speed = 1.0 //Get speed in same units as desired output speed for differential steering
-            vector<double> ackermann = lane.AckermannSteering();
-            vector<double> differential = lane.DifferentialSteering(speed);
+            double speed = 1.0; //Get speed in same units as desired output speed for differential steering
+            std::vector<double> ackermann = lane.AckermannSteering();
+            std::vector<double> differential = lane.DifferentialSteering(speed);
             //sendMessage(&serial, lane.getSteeringAngle());
             
             //show image
