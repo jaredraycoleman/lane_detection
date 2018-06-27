@@ -27,18 +27,16 @@ Detector::Detector(string config_path)
         r_start = cfg.lookup("detector.start.right");
 
         double cam_angle = cfg.lookup("camera.angle");
-        int frame_width = cfg.lookup("camera.frame.width");
-        int frame_height = cfg.lookup("camera.frame.height");
-        int frame_floor = cfg.lookup("camera.frame.floor");
-        int frame_ceiling = cfg.lookup("camera.frame.ceiling");
+        double frame_floor = cfg.lookup("camera.frame.floor");
+        double frame_ceiling = cfg.lookup("camera.frame.ceiling");
 
         string path = cfg.lookup("video.file");
         VideoCapture cap(path);
         Mat frame;
         cap >> frame;
         
-        matrix_transform_birdseye = getTransformMatrix(cam_angle, frame_width, frame_height, frame_floor, frame_ceiling);
-        matrix_transform_fiperson = getTransformMatrix(cam_angle, frame_width, frame_height, frame_floor, frame_ceiling, true);
+        matrix_transform_birdseye = getTransformMatrix(frame, cam_angle, frame_floor, frame_ceiling);
+        matrix_transform_fiperson = getTransformMatrix(frame, cam_angle, frame_floor, frame_ceiling, true);
         cap.release();
     }
     catch(...)
@@ -60,6 +58,8 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     
     thresh(frame, th);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
+
+    imshow("birds", dst);
     
     int width = dst.cols;
     int height = dst.rows;
@@ -136,7 +136,8 @@ void Detector::drawLane(Mat &img, Lane &lane)
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
     for (int i = 0; i < img.rows; i++)
     {
-        circle(blank, Point(polynomial(&(lane.getParams())[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point(polynomial(&(lane.getLParams())[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point(polynomial(&(lane.getRParams())[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
     }
     warpPerspective(blank, blank, matrix_transform_fiperson, Size(img.cols, img.rows));
     for (int i = 0; i < img.rows; i+=2)
@@ -157,13 +158,21 @@ void Detector::drawLane(Mat &img, Lane &lane)
  * @param undo If undo is true, return the matrix for transforming from birdseye to first-person perspective
  * @return perspective transform matrix
  */
-Mat Detector::getTransformMatrix(double angle, int width, int height, int floor, int ceiling, bool undo)
+Mat Detector::getTransformMatrix(Mat frame, double angle, double perc_low, double perc_high, bool undo)
 {
-    int left = (int)(ceiling / tan(angle));
+    int width = frame.cols;
+    int height = frame.rows;
+    int low = (int)(perc_low * height);
+    int high = (int)(perc_high * height);
+    int left = (int)(high / tan(angle));
     int right = (int)(width / 2.0 + width / 2.0 - left);
-    std::vector<Point2f> src = {Point2f(0.0, ceiling), Point2f(width, ceiling), Point2f(width, floor), Point2f(0.0, floor)};
-    std::vector<Point2f> dst = {Point2f(0.0, 0.0), Point2f(width, 0.0), Point2f(right, height), Point2f(left, height)};
-    
+
+    std::vector<Point2f> src = {Point2f(0, high), Point2f(width, high), Point2f(width, low), Point2f(0, low)};
+    std::vector<Point2f> dst = {Point2f(0, 0), Point2f(width, 0), Point2f(right, height), Point2f(left, height)};
+   
+    // std::vector<Point2f> src = {Point2f(width*0.44,height*0.20), Point2f(width*0.56,height*0.20), Point2f(width*1.00,height*0.85), Point2f(width*0.00,height*0.85)};
+    // std::vector<Point2f> dst = {Point2f(width*0.20,height*0.00), Point2f(width*0.80,height*0.00), Point2f(width*0.80,height*1.00), Point2f(width*0.20,height*1.00)};
+     
     Mat m;
     if (undo) m = getPerspectiveTransform(&dst[0], &src[0]);
     else m = getPerspectiveTransform(&src[0], &dst[0]);

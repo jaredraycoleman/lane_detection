@@ -10,6 +10,9 @@ class Lane
 private:
     int n;  //number of parameters that define the lane (degree + 1)
     std::vector<double> params; //array of size degree. Defines coefficients for left lane curve.
+    std::vector<double> lparams;
+    std::vector<double> rparams;
+
     double filter; //filter for curve to remove jitter. lane = old_lane*filter + new_lane*(1-filter).
     double curvature; //positive curvature is right, negative is left
     double width;
@@ -22,6 +25,9 @@ public:
     
     int getN();
     std::vector<double> getParams();
+    std::vector<double> getLParams();
+    std::vector<double> getRParams();
+
     double getFilter();
     double getCurvature();
     double getWidth();

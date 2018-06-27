@@ -67,7 +67,9 @@ int main(int argc, char* argv[])
     
     if(!cap.isOpened()) return -1;
     
+    //namedWindow("original", 1);
     namedWindow("output", 1);
+    namedWindow("birds", 1);
     Mat frame;
     cap >> frame;
     
@@ -77,6 +79,7 @@ int main(int argc, char* argv[])
         {
             //get frame from stream
             cap >> frame;
+            //imshow("original", frame);
             detector.getLanes(frame, lane);
             
             //draw lanes

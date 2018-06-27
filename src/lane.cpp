@@ -22,6 +22,8 @@ Lane::Lane(std::string config_path)
         n = cfg.lookup("lane.n");
         filter = cfg.lookup("lane.filter");
         params = std::vector<double>(n, (double)nan("1"));
+        lparams = std::vector<double>(n, (double)nan("1"));
+        rparams = std::vector<double>(n, (double)nan("1"));
         camera_height = cfg.lookup("camera.height");
         vehicle_length = cfg.lookup("vehicle.length");
         vehicle_width = cfg.lookup("vehicle.width");
@@ -44,6 +46,8 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
     {
         for (int i = 0; i < n; i++)
         {
+            this->lparams[i] = l[i];
+            this->rparams[i] = r[i];
             this->params[i] = (l[i] + r[i]) / 2;
         }
     }
@@ -52,6 +56,9 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
         for (int i = 0; i < n; i++)
         {
             double temp = (l[i] + r[i]) / 2;
+            
+            this->lparams[i] = filter * lparams[i] + (1 - filter) * l[i];
+            this->rparams[i] = filter * rparams[i] + (1 - filter) * r[i];
             this->params[i] = filter * params[i] + (1 - filter) * temp;
         }
     }
@@ -59,6 +66,9 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
 
 int Lane::getN() { return this->n; }
 std::vector<double> Lane::getParams() { return this->params; }
+std::vector<double> Lane::getLParams() { return this->lparams; }
+std::vector<double> Lane::getRParams() { return this->rparams; }
+
 double Lane::getFilter() { return this->filter; }
 double Lane::getCurvature() { return this->params[2]; }
 double Lane::getWidth() { return this->width; }

@@ -28,7 +28,7 @@ private:
     int frame_floor;
     int frame_ceiling;
     
-    Mat getTransformMatrix(double angle, int width, int height, int floor, int ceiling, bool undo=false);
+    Mat getTransformMatrix(Mat frame, double angle, double perc_low, double perc_high, bool undo=false);
 
 public:
     Detector(string config_path);
