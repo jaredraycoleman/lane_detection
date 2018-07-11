@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
     
     string video_path;
     string serial_port;
+    int skip_frames;
     int serial_baud;
     double k;
     try
@@ -50,6 +51,7 @@ int main(int argc, char* argv[])
         cfg.readFile(config_path.c_str());
 
         video_path = cfg.lookup("video.file").c_str();
+        skip_frames = cfg.lookup("video.skip_frames");
         //serial_port = cfg.lookup("serial.port").c_str();
         //serial_baud = cfg.lookup("serial.baud");
         k = cfg.lookup("controller.k");
@@ -72,13 +74,17 @@ int main(int argc, char* argv[])
     namedWindow("birds", 1);
     Mat frame;
     cap >> frame;
-    
+    int i = 0;
     while(true)
     {
         try
         {
             //get frame from stream
             cap >> frame;
+            if (i++ % skip_frames != 0)
+            {
+                continue;
+            } 
             //imshow("original", frame);
             detector.getLanes(frame, lane);
             
