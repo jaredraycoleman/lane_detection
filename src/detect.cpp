@@ -1,7 +1,7 @@
 /**
  * Detect.cpp
  * Provides functions for lane detection
- * 
+ *
  * @author Oscar Morales Ponce
  * @author Jared Coleman
  * @version 1.0 12/02/17
@@ -17,9 +17,10 @@ using namespace std;
 #include "lane.h"
 #include "uartcommander.h"
 #include "detector.h"
+#include "logger.h"
 
 using namespace cv;
-   
+
 void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
@@ -37,9 +38,9 @@ int main(int argc, char* argv[])
         cout << "Usage: " << argv[0] << " <config file>" << endl;
         return 0;
     }
-    
+
     string config_path(argv[1]);
-    
+
     string video_path;
     string serial_port;
     int skip_frames;
@@ -61,20 +62,23 @@ int main(int argc, char* argv[])
         cerr << "Invalid config file" << endl;
         return 0;
     }
-    
+
     VideoCapture cap(video_path);
     //SerialCommunication serial(serial_port, serial_baud);
     Lane lane(config_path);
     Detector detector(config_path);
-    
+
     if(!cap.isOpened()) return -1;
-    
+
     //namedWindow("original", 1);
     namedWindow("output", 1);
     namedWindow("birds", 1);
     Mat frame;
     cap >> frame;
     int i = 0;
+
+    Logger::init(true, "test.log", Levels::DEBUG);
+    auto logger = Logger::getLogger();
     while(true)
     {
         try
@@ -84,26 +88,26 @@ int main(int argc, char* argv[])
             if (i++ % skip_frames != 0)
             {
                 continue;
-            } 
+            }
             //imshow("original", frame);
             detector.getLanes(frame, lane);
-            
+            logger.log("detect", "Got logs!", Levels::INFO, {"test", "awesome"});
             //draw lanes
             detector.drawLane(frame, lane);
-            
+
             //sends message
             double speed = 1.0; //Get speed in same units as desired output speed for differential steering
             std::vector<double> ackermann = lane.AckermannSteering();
             std::vector<double> differential = lane.DifferentialSteering(speed);
             //sendMessage(&serial, lane.getSteeringAngle());
-            
+
             //show image
             imshow("output", frame);
-            if(waitKey(1) >= 0) break;
+            if(waitKey(1) < 255) break;
         }
         catch(cv::Exception e)
         {
-            cout << e.what() << endl; 
+            cout << e.what() << endl;
             break;
         }
     }
