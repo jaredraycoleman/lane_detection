@@ -10,6 +10,7 @@
 using namespace std;
 
 #include <string>
+#include <string.h>
 #include <libconfig.h++>
 
 #include "opencv2/opencv.hpp"
@@ -31,6 +32,42 @@ void sendMessage(SerialCommunication *serial, int8_t angle)
     serial->sendCommand(&command1);
 }
 
+vector<int> position {0, 0, 0};
+vector<int> speed {0, 0, 0};
+
+std::string vec_to_string(std::vector<int> vec)
+{
+    std::ostringstream oss;
+    oss << "[";
+    for (auto i = vec.begin(); i != vec.end(); ++i)
+        oss << *i << ' ';
+    oss << "]";
+    return oss.str();
+}
+
+double vec_magnitude(std::vector<int> vec)
+{
+    double sum = 0.0;
+    for (auto i = vec.begin(); i != vec.end(); ++i)
+    {
+        sum += *i;
+    }
+    return sum / vec.size();
+}
+
+void receive(LDMap ldmap)
+{
+  position[0] = ldmap.position_x;
+  position[1] = ldmap.position_y;
+  position[2] = ldmap.position_z;
+  speed[0] = ldmap.speed_x;
+  speed[1] = ldmap.speed_y;
+  speed[2] = ldmap.speed_z;
+
+  std::cout << "Position: " << vec_to_string(position) << std::endl;
+  std::cout << "Speed: " << vec_to_string(speed) << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -39,13 +76,15 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    Logger::init(false, "test.log", Levels::DEBUG);
+    auto logger = Logger::getLogger();
+
     string config_path(argv[1]);
 
     string video_path;
     string serial_port;
     int skip_frames;
     int serial_baud;
-    double k;
     try
     {
         libconfig::Config cfg;
@@ -53,9 +92,8 @@ int main(int argc, char* argv[])
 
         video_path = cfg.lookup("video.file").c_str();
         skip_frames = cfg.lookup("video.skip_frames");
-        //serial_port = cfg.lookup("serial.port").c_str();
-        //serial_baud = cfg.lookup("serial.baud");
-        k = cfg.lookup("controller.k");
+        serial_port = cfg.lookup("serial.port").c_str();
+        serial_baud = cfg.lookup("serial.baud");
     }
     catch(...)
     {
@@ -64,7 +102,9 @@ int main(int argc, char* argv[])
     }
 
     VideoCapture cap(video_path);
-    //SerialCommunication serial(serial_port, serial_baud);
+    SerialCommunication serial(serial_port, serial_baud);
+
+    serial.run(&receive);
     Lane lane(config_path);
     Detector detector(config_path);
 
@@ -77,29 +117,25 @@ int main(int argc, char* argv[])
     cap >> frame;
     int i = 0;
 
-    Logger::init(true, "test.log", Levels::DEBUG);
-    auto logger = Logger::getLogger();
     while(true)
     {
         try
         {
             //get frame from stream
             cap >> frame;
-            if (i++ % skip_frames != 0)
+            if (skip_frames != 0 && i++ % skip_frames != 0)
             {
                 continue;
             }
             //imshow("original", frame);
             detector.getLanes(frame, lane);
-            logger.log("detect", "Got logs!", Levels::INFO, {"test", "awesome"});
             //draw lanes
             detector.drawLane(frame, lane);
 
             //sends message
-            double speed = 1.0; //Get speed in same units as desired output speed for differential steering
-            std::vector<double> ackermann = lane.AckermannSteering();
-            std::vector<double> differential = lane.DifferentialSteering(speed);
-            //sendMessage(&serial, lane.getSteeringAngle());
+            double radius = detector.getTurningRadius(lane);
+
+            sendMessage(&serial, (uint8_t)(radius*100));
 
             //show image
             imshow("output", frame);

@@ -2,14 +2,18 @@ using namespace std;
 
 #include "detector.h"
 #include "polifitgsl.h"
+#include "logger.h"
 
 #include <libconfig.h++>
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 using namespace cv;
 
 //-----CLASS METHOD DECLARATIONS-----//
 
-int polynomial(const double *params, int degree, double x);
+int polynomial(std::vector<double> params, double x);
 void thresh(cv::Mat &src, cv::Mat &dst);
 
 //-----CLASS METHODS-----//
@@ -34,6 +38,11 @@ Detector::Detector(string config_path)
         VideoCapture cap(path);
         Mat frame;
         cap >> frame;
+
+        frame_height = frame.rows;
+        frame_width = frame.cols;        
+        m_per_px = (double)cfg.lookup("camera.range") / frame_height;
+
         
         matrix_transform_birdseye = getTransformMatrix(frame, cam_angle, frame_floor, frame_ceiling);
         matrix_transform_fiperson = getTransformMatrix(frame, cam_angle, frame_floor, frame_ceiling, true);
@@ -136,8 +145,8 @@ void Detector::drawLane(Mat &img, Lane &lane)
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
     for (int i = 0; i < img.rows; i++)
     {
-        circle(blank, Point(polynomial(&(lane.getLParams())[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
-        circle(blank, Point(polynomial(&(lane.getRParams())[0], lane.getN(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point(polynomial(lane.getLParams(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point(polynomial(lane.getRParams(), i), i), 3, Scalar(150, 0, 0), 3);
     }
     warpPerspective(blank, blank, matrix_transform_fiperson, Size(img.cols, img.rows));
     for (int i = 0; i < img.rows; i+=2)
@@ -206,12 +215,106 @@ void thresh(cv::Mat &src, cv::Mat &dst)
  * @param x Polynomial input
  * @return Evaluated expression.
  */
-int polynomial(const double *params, int degree, double x)
+int polynomial(std::vector<double> params, double x)
 {
     double val = 0;
-    for (int i = 0; i < degree; i++)
+    for (int i = 0; i < params.size(); i++)
     {
         val += params[i] * pow(x, i);
     }
     return (int)val;
 }	
+
+/**
+ * Evaluates the derivative of a second degree polynomial 
+ * @param params vector of polynomial's coefficients, from lowest degree to highest
+ * @return vector of derivative polynomial coefficients
+ */
+std::vector<double> derivative(std::vector<double> params)
+{
+    assert(params.size() == 3);
+    std::vector<double> deriv(params.size()-1);
+    for (int i = 1; i < params.size(); i++)
+    {
+        deriv.push_back(params[i] * (double)i);
+    }
+
+    return deriv;
+}
+
+
+
+/**
+ * Calculates the turning radius of the vehicle
+ * @return Turning radius of vehcile
+ */
+double Detector::getTurningRadius(Lane &lane)
+{  
+    auto params = lane.getParams();
+    double y_pos = (double)frame_height;
+    double x_pos = polynomial(params, y_pos);
+    double m_pos = M_PI/2 + 0.001;
+    double b_pos = m_pos*x_pos - y_pos;
+
+    double y_des = (double)frame_height * 0.75;
+    double x_des = polynomial(params, y_des);
+    double m_des = polynomial(derivative(params), y_des);
+    double b_des = m_des * x_des - y_des;
+
+    double radius = 0;
+    if (m_pos != m_des)
+    {
+        double x_center = (b_pos - b_des) / (m_des - m_pos);
+        double y_center = m_pos * x_center + b_pos;
+
+        radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
+
+        // Negative turning radius is for left turn
+        if (x_center < x_pos) 
+            radius *= -1;
+
+        radius *= this->m_per_px;
+    }
+
+    std::ostringstream oss;
+    oss << "radius: " << radius;
+    Logger::getLogger().log("lane", oss.str(), Levels::INFO, {});
+    return radius;
+}
+
+// /**
+//  * Calculate the ackermann steering angle for vehcile
+//  * @returns two-element vector (left and right wheel) of steering angles
+//  */
+// std::vector<double> Detector::AckermannSteering()
+// {
+//     double radius = this->getTurningRadius();
+
+//     std::vector<double> steering_angle{0, 0};
+//     if (radius != 0)
+//     {
+//         steering_angle[0] = atan2(vehicle_length, radius + (vehicle_width/2));
+//         steering_angle[1] = atan2(vehicle_length, radius + (vehicle_width/2));
+//     }
+
+//     return steering_angle;
+// }
+
+// /**
+//  * Calculate the differential steering velocities for vehcile
+//  * @returns two-element vector (left and right wheel) of steering velocities 
+//  */
+// std::vector<double> Detector::DifferentialSteering(double speed)
+// {
+//     double radius = this->getTurningRadius();
+
+//     std::vector<double> differential{0, 0};
+//     if (radius != 0)
+//     {
+//         double temp = vehicle_width / (2 * radius);
+//         differential.at(0) = speed * (1 + temp);
+//         differential.at(1) = speed * (1 - temp);
+//     }
+
+//     return differential;
+// }

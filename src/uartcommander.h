@@ -8,31 +8,35 @@
 
 #include <vector>
 #include <boost/asio.hpp>
+#include <functional>
+
 
 using namespace std;
 using namespace boost;
 
 
-struct _tUARTCommand
+typedef struct _tUARTCommand
 {
     int8_t speed;
     int8_t wheelOrientation;
     uint8_t maxTime;
-    uint8_t orientation;
-};
+    int16_t orientation;
+}UARTCommand;
 
-struct _tUARTData
+typedef struct _LDMap
 {
-    uint8_t id;
-    uint8_t speed;
-    uint8_t position_x,position_y;
-    uint8_t acceleration_x,acceleration_y;
-    uint8_t orientation;
-    uint8_t timestamp;
-};
+   uint8_t id;
+   uint8_t leaderId;
+   int8_t position_x,position_y,position_z; // decimenter
+   int8_t speed_x,  speed_y, speed_z;   // cm per second
+   int8_t acceleration_x,acceleration_y,acceleration_z; // cm per second square
+   int16_t orientation;
+   uint16_t members;
+   int16_t distance;
+   uint32_t timestamp;
+} LDMap;
 
-typedef struct _tUARTCommand UARTCommand;
-typedef struct _tUARTData UARTData;
+
 
 enum {UartWaitForFirstStart, UartWaitForSecondStart,
       UartWaitForLenght, UartWaitForData, UartWaitForCheckSum};
@@ -48,14 +52,14 @@ class SerialCommunication
 				  asio::serial_port_base::flow_control(asio::serial_port_base::flow_control::none),
 			  asio::serial_port_base::stop_bits opt_stop=asio::serial_port_base::stop_bits(
 				  asio::serial_port_base::stop_bits::one));
-      
+
       ~SerialCommunication();
-      
+
       void sendCommand(UARTCommand *uartCommand);
       bool isOpen() const;
       void execute();
-      
-      void run();
+
+      void run(std::function<void(LDMap)> callback=[](LDMap l){});
       void join();
 
 private:
@@ -75,18 +79,19 @@ private:
       void receiveData(unsigned char c);
       void writeCommand(unsigned char *data, unsigned char size);
 
-    
+
       std::queue<UARTCommand> queue;
       asio::io_service io;
       asio::serial_port port;
       bool openPort;
-      
+
       uint8_t rxUartState;
-      uint8_t buffer[sizeof(UARTData)+1];
+      uint8_t buffer[sizeof(LDMap)+1];
       uint8_t ch;
       uint8_t lenght;
       uint8_t iByte;
-      
+      std::function<void(LDMap)> callback;
+
       std::thread *serialExecution;
       std::mutex mutex;
 };

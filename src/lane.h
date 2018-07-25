@@ -31,9 +31,6 @@ public:
     double getFilter();
     double getCurvature();
     double getWidth();
-    double getTurningRadius();
-    std::vector<double> AckermannSteering();
-    std::vector<double> DifferentialSteering(double speed);
     
     void update(std::vector<double> l, std::vector<double> r);
     
