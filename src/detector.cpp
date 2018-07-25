@@ -205,7 +205,7 @@ void thresh(cv::Mat &src, cv::Mat &dst)
     cv::cvtColor(src, dst, CV_BGR2GRAY);
     
     cv::GaussianBlur(dst, dst, Size( 7, 7 ), 1.5, 1.5 );
-    cv::threshold(dst, dst, 185, 255, THRESH_BINARY);
+    cv::threshold(dst, dst, 180, 255, THRESH_BINARY);
 }
 
 /**
@@ -256,7 +256,7 @@ double Detector::getTurningRadius(Lane &lane)
     double m_pos = M_PI/2 + 0.001;
     double b_pos = m_pos*x_pos - y_pos;
 
-    double y_des = (double)frame_height * 0.75;
+    double y_des = (double)frame_height * 0.55;
     double x_des = polynomial(params, y_des);
     double m_des = polynomial(derivative(params), y_des);
     double b_des = m_des * x_des - y_des;
@@ -270,7 +270,7 @@ double Detector::getTurningRadius(Lane &lane)
         radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
 
         // Negative turning radius is for left turn
-        if (x_center < x_pos) 
+        if (x_des < x_pos) 
             radius *= -1;
 
         radius *= this->m_per_px;

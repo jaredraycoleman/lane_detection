@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
 
     string config_path(argv[1]);
 
-    string video_path;
+    int video_path = 3;
     string serial_port;
     int skip_frames;
     int serial_baud;
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
         libconfig::Config cfg;
         cfg.readFile(config_path.c_str());
 
-        video_path = cfg.lookup("video.file").c_str();
+        //video_path = cfg.lookup("video.file");
         skip_frames = cfg.lookup("video.skip_frames");
         serial_port = cfg.lookup("serial.port").c_str();
         serial_baud = cfg.lookup("serial.baud");
@@ -102,9 +102,9 @@ int main(int argc, char* argv[])
     }
 
     VideoCapture cap(video_path);
-    SerialCommunication serial(serial_port, serial_baud);
+    //SerialCommunication serial(serial_port, serial_baud);
 
-    serial.run(&receive);
+    //serial.run(&receive);
     Lane lane(config_path);
     Detector detector(config_path);
 
@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
             //sends message
             double radius = detector.getTurningRadius(lane);
 
-            sendMessage(&serial, (uint8_t)(radius*100));
+            //sendMessage(&serial, (uint8_t)(radius*100));
 
             //show image
             imshow("output", frame);
