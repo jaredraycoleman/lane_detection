@@ -102,9 +102,9 @@ int main(int argc, char* argv[])
     }
 
     VideoCapture cap(video_path);
-    SerialCommunication serial(serial_port, serial_baud);
+//    SerialCommunication serial(serial_port, serial_baud);
 
-    serial.run(&receive);
+//    serial.run(&receive);
     Lane lane(config_path);
     Detector detector(config_path);
 
@@ -135,11 +135,11 @@ int main(int argc, char* argv[])
             //sends message
             double radius = detector.getTurningRadius(lane);
 
-            sendMessage(&serial, (uint8_t)(radius*100));
+  //          sendMessage(&serial, (uint8_t)(radius*100));
 
             //show image
             imshow("output", frame);
-            if(waitKey(1) < 255) break;
+            waitKey(1)
         }
         catch(cv::Exception e)
         {
