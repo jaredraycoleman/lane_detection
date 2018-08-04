@@ -14,7 +14,7 @@ using namespace cv;
 //-----CLASS METHOD DECLARATIONS-----//
 
 int polynomial(std::vector<double> params, double x);
-void thresh(cv::Mat &src, cv::Mat &dst);
+void thresh(cv::Mat &src, cv::Mat &dst, int threshold);
 
 //-----CLASS METHODS-----//
 
@@ -29,6 +29,8 @@ Detector::Detector(string config_path)
         col_step = cfg.lookup("detector.col_step");
         l_start = cfg.lookup("detector.start.left");
         r_start = cfg.lookup("detector.start.right");
+
+        img_threshold = cfg.lookup("camera.threshold");
 
         double cam_angle = cfg.lookup("camera.angle");
         double frame_floor = cfg.lookup("camera.frame.floor");
@@ -65,7 +67,7 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     Mat dst;
     Mat frame = img.clone();
     
-    thresh(frame, th);
+    thresh(frame, th, img_threshold);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
 
     imshow("birds", dst);
@@ -200,12 +202,12 @@ Mat Detector::getTransformMatrix(Mat frame, double angle, double perc_low, doubl
  * @param src image to threshold (GpuMat)
  * @param dst destination for thresholded image (GpuMat)
  */
-void thresh(cv::Mat &src, cv::Mat &dst)
+void thresh(cv::Mat &src, cv::Mat &dst, int threshold)
 {
     cv::cvtColor(src, dst, CV_BGR2GRAY);
     
     cv::GaussianBlur(dst, dst, Size( 7, 7 ), 1.5, 1.5 );
-    cv::threshold(dst, dst, 185, 255, THRESH_BINARY);
+    cv::threshold(dst, dst, threshold, 255, THRESH_BINARY);
 }
 
 /**

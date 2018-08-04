@@ -20,6 +20,7 @@ private:
     int col_step;
     int l_start;
     int r_start;
+    int img_threshold;
     Mat matrix_transform_birdseye;
     Mat matrix_transform_fiperson;
 

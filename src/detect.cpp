@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
 
             //show image
             imshow("output", frame);
-            waitKey(1)
+            waitKey(1);
         }
         catch(cv::Exception e)
         {
