@@ -252,13 +252,13 @@ std::vector<double> derivative(std::vector<double> params)
  */
 double Detector::getTurningRadius(Lane &lane)
 {  
-    auto params = lane.getParams();
+    auto params = lane.getParams();         // vector
     double y_pos = (double)frame_height;
     double x_pos = polynomial(params, y_pos);
-    double m_pos = M_PI/2 + 0.001;
+    double m_pos = M_PI/2 + 0.001;          // 0.001 to avoid division by 0
     double b_pos = m_pos*x_pos - y_pos;
 
-    double y_des = (double)frame_height * 0.75;
+    double y_des = (double)frame_height * 0.25;
     double x_des = polynomial(params, y_des);
     double m_des = polynomial(derivative(params), y_des);
     double b_des = m_des * x_des - y_des;
@@ -266,8 +266,8 @@ double Detector::getTurningRadius(Lane &lane)
     double radius = 0;
     if (m_pos != m_des)
     {
-        double x_center = (b_pos - b_des) / (m_des - m_pos);
-        double y_center = m_pos * x_center + b_pos;
+        double x_center = (m_des * m_pos) * (b_des - b_pos) / (m_pos - m_des);
+        double y_center = (-1 / m_pos) * x_center + b_pos;
 
         radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
 
