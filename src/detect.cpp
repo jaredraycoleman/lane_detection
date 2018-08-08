@@ -28,9 +28,10 @@ void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
     command1.speed = 0;
-    command1.wheelOrientation = angle;
-    command1.maxTime = 100;
-    command1.orientation= 0;
+    command1.maxTime = 300;
+    command1.distance = 0;
+    command1.dir = 1;
+    command1.orientation = angle;
     serial->sendCommand(&command1);
 }
 
@@ -114,9 +115,9 @@ int main(int argc, char* argv[])
     }
 
 
-//    SerialCommunication serial(serial_port, serial_baud);
+    SerialCommunication serial(serial_port, serial_baud);
 
-//    serial.run(&receive);
+    serial.run();
     Lane lane(config_path);
     Detector detector(config_path);
 
@@ -147,7 +148,11 @@ int main(int argc, char* argv[])
             //sends message
             double radius = detector.getTurningRadius(lane);
 
-  //          sendMessage(&serial, (uint8_t)(radius*100));
+            if (radius > 0) {
+                sendMessage(&serial, 50);
+            } else {
+                sendMessage(&serial, -50);
+            }
 
             //show image
             imshow("output", frame);
