@@ -8,26 +8,27 @@
 
 #include <vector>
 #include <boost/asio.hpp>
-#include <functional>
+
 
 
 using namespace std;
 using namespace boost;
 
-
 typedef struct _tUARTCommand
 {
-    int8_t speed;
-    int8_t wheelOrientation;
-    uint8_t maxTime;
+    int16_t maxTime;
+    int16_t speed;
     int16_t orientation;
-}UARTCommand;
+    int16_t distance;
+    uint8_t dir;
+} UARTCommand;
+
 
 typedef struct _LDMap
 {
    uint8_t id;
    uint8_t leaderId;
-   int8_t position_x,position_y,position_z; // decimenter
+   int8_t position_x,position_y,position_z; // decimenter 
    int8_t speed_x,  speed_y, speed_z;   // cm per second
    int8_t acceleration_x,acceleration_y,acceleration_z; // cm per second square
    int16_t orientation;
@@ -52,14 +53,14 @@ class SerialCommunication
 				  asio::serial_port_base::flow_control(asio::serial_port_base::flow_control::none),
 			  asio::serial_port_base::stop_bits opt_stop=asio::serial_port_base::stop_bits(
 				  asio::serial_port_base::stop_bits::one));
-
+      
       ~SerialCommunication();
-
+      
       void sendCommand(UARTCommand *uartCommand);
       bool isOpen() const;
       void execute();
-
-      void run(std::function<void(LDMap)> callback=[](LDMap l){});
+      
+      void run();
       void join();
 
 private:
@@ -79,19 +80,18 @@ private:
       void receiveData(unsigned char c);
       void writeCommand(unsigned char *data, unsigned char size);
 
-
+    
       std::queue<UARTCommand> queue;
       asio::io_service io;
       asio::serial_port port;
       bool openPort;
-
+      
       uint8_t rxUartState;
       uint8_t buffer[sizeof(LDMap)+1];
       uint8_t ch;
       uint8_t lenght;
       uint8_t iByte;
-      std::function<void(LDMap)> callback;
-
+      
       std::thread *serialExecution;
       std::mutex mutex;
 };
