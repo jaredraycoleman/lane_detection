@@ -3,6 +3,7 @@ using namespace std;
 #include "detector.h"
 #include "polifitgsl.h"
 #include "logger.h"
+#include "helpers.h"
 
 #include <libconfig.h++>
 
@@ -37,6 +38,7 @@ Detector::Detector(string config_path)
         double frame_ceiling = cfg.lookup("camera.frame.ceiling");
 
         string path = cfg.lookup("video.file");
+        path = abs_path(path, get_dir(config_path));
         VideoCapture cap(path);
         Mat frame;
         cap >> frame;

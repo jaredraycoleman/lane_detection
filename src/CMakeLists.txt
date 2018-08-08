@@ -27,7 +27,7 @@ if(JETSON_TX2)
     )
     cuda_add_executable(detect detect.cpp detector.cu lane.cpp polifitgsl.cpp uartcommander.cpp OPTIONS -std=c++11)
 else()
-    add_executable(detect detect.cpp detector.cpp lane.cpp polifitgsl.cpp uartcommander.cpp logger.cpp)
+    add_executable(detect helpers.cpp detect.cpp detector.cpp lane.cpp polifitgsl.cpp uartcommander.cpp logger.cpp)
 endif()
 
 target_link_libraries(detect ${OpenCV_LIBS} ${GSL_LIBRARY} ${Boost_LIBRARIES} ${GSL_CBLAS_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} config++)

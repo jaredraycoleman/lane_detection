@@ -12,6 +12,7 @@ using namespace std;
 #include <string>
 #include <string.h>
 #include <libconfig.h++>
+#include <algorithm>
 
 #include "opencv2/opencv.hpp"
 
@@ -19,6 +20,7 @@ using namespace std;
 #include "uartcommander.h"
 #include "detector.h"
 #include "logger.h"
+#include "helpers.h"
 
 using namespace cv;
 
@@ -91,6 +93,12 @@ int main(int argc, char* argv[])
         cfg.readFile(config_path.c_str());
 
         video_path = cfg.lookup("video.file").c_str();
+        
+        video_path = abs_path(video_path, get_dir(config_path));
+
+        std::cout << config_path << std::endl;
+        std::cout << video_path << std::endl;
+
         skip_frames = cfg.lookup("video.skip_frames");
         serial_port = cfg.lookup("serial.port").c_str();
         serial_baud = cfg.lookup("serial.baud");
