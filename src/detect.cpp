@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
 
     string config_path(argv[1]);
 
-    int video_path = 3;
+    int video_path = 0;
     string serial_port;
     int skip_frames;
     int serial_baud;
@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
 
             //show image
             imshow("output", frame);
-            if(waitKey(1) < 255) break;
+            if(waitKey(1) >= 255) break;
         }
         catch(cv::Exception e)
         {
