@@ -36,10 +36,16 @@ Detector::Detector(string config_path)
         double cam_angle = cfg.lookup("camera.angle");
         double frame_floor = cfg.lookup("camera.frame.floor");
         double frame_ceiling = cfg.lookup("camera.frame.ceiling");
-
-        string path = cfg.lookup("video.file");
-        path = abs_path(path, get_dir(config_path));
-        VideoCapture cap(path);
+       
+        VideoCapture cap;
+        if (cfg.exists("video.index")) {
+            int index = cfg.lookup("video.index");
+            cap = VideoCapture(index);
+        } else {
+            std::string path = cfg.lookup("video.file").c_str();
+            path = abs_path(path, get_dir(config_path));
+            cap = VideoCapture(path);
+        }
         Mat frame;
         cap >> frame;
 

@@ -83,7 +83,9 @@ int main(int argc, char* argv[])
 
     string config_path(argv[1]);
 
-    string video_path;
+    VideoCapture cap;
+
+
     string serial_port;
     int skip_frames;
     int serial_baud;
@@ -92,12 +94,14 @@ int main(int argc, char* argv[])
         libconfig::Config cfg;
         cfg.readFile(config_path.c_str());
 
-        video_path = cfg.lookup("video.file").c_str();
-        
-        video_path = abs_path(video_path, get_dir(config_path));
-
-        std::cout << config_path << std::endl;
-        std::cout << video_path << std::endl;
+        if (cfg.exists("video.index")) {
+            int index = cfg.lookup("video.index");
+            cap = VideoCapture(index);
+        } else {
+            std::string path(cfg.lookup("video.file").c_str());
+            path = abs_path(path, get_dir(config_path));
+            cap = VideoCapture(path);
+        }
 
         skip_frames = cfg.lookup("video.skip_frames");
         serial_port = cfg.lookup("serial.port").c_str();
@@ -109,7 +113,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    VideoCapture cap(video_path);
+
 //    SerialCommunication serial(serial_port, serial_baud);
 
 //    serial.run(&receive);
