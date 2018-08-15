@@ -14,7 +14,7 @@ using namespace cv;
 
 //-----CLASS METHOD DECLARATIONS-----//
 
-int polynomial(std::vector<double> params, double x);
+double polynomial(std::vector<double> params, double x);
 void thresh(cv::Mat &src, cv::Mat &dst, int threshold);
 
 //-----CLASS METHODS-----//
@@ -130,7 +130,7 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     
     lane.update(l_new, r_new);
 
-    getTurningRadius(lane, dst);
+    //getTurningRadius(lane, dst);
 
 }
 
@@ -145,8 +145,8 @@ void Detector::drawLane(Mat &img, Lane &lane)
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
     for (int i = 0; i < img.rows; i++)
     {
-        circle(blank, Point(polynomial(lane.getLParams(), i), i), 3, Scalar(150, 0, 0), 3);
-        circle(blank, Point(polynomial(lane.getRParams(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point((int)polynomial(lane.getLParams(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point((int)polynomial(lane.getRParams(), i), i), 3, Scalar(150, 0, 0), 3);
     }
     warpPerspective(blank, blank, matrix_transform_fiperson, Size(img.cols, img.rows));
     for (int i = 0; i < img.rows; i+=2)
@@ -213,14 +213,14 @@ void thresh(cv::Mat &src, cv::Mat &dst, int threshold)
  * @param x Polynomial input
  * @return Evaluated expression.
  */
-int polynomial(std::vector<double> params, double x)
+double polynomial(std::vector<double> params, double x)
 {
     double val = 0;
     for (int i = 0; i < params.size(); i++)
     {
         val += params[i] * pow(x, i);
     }
-    return (int)val;
+    return val;
 }	
 
 /**
@@ -231,7 +231,7 @@ int polynomial(std::vector<double> params, double x)
 std::vector<double> derivative(std::vector<double> params)
 {
     assert(params.size() == 3);
-    std::vector<double> deriv(params.size()-1);
+    std::vector<double> deriv; 
     for (int i = 1; i < params.size(); i++)
     {
         deriv.push_back(params[i] * (double)i);
@@ -246,34 +246,37 @@ std::vector<double> derivative(std::vector<double> params)
  * Calculates the turning radius of the vehicle
  * @return Turning radius of vehcile
  */
-double Detector::getTurningRadius(Lane &lane, Mat &mat)
+double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
 {  
     auto params = lane.getParams();         // vector
     double y_pos = (double)frame_height;
-    double x_pos = polynomial(params, y_pos);
-    double m_pos = 1 / 0.000001;          // 0.001 to avoid division by 0
+    double x_pos = (int)polynomial(params, y_pos);
+    double m_pos = 0.0001; // 1 / infinity         // 0.001 to avoid division by 0
     double b_pos = y_pos - (m_pos * x_pos);
 
     double y_des = (double)frame_height * 0.25;
-    double x_des = polynomial(params, y_des);
-    double m_des = polynomial(derivative(params), y_des);
+    double x_des = (int)polynomial(params, y_des);
+    double m_des = -1 / polynomial(derivative(params), y_des);
     double b_des = y_des - m_des * x_des;
 
-    std::cout << "y = " << m_pos << "x + " << b_pos << std::endl;
+    //auto deriv = derivative(params);
+    //std::cout << "y = " << m_des << "x + " << b_des << std::endl;
 
     //(frame_height - b_pos) / m_pos
-    line(mat, Point((y_pos - b_pos) / m_pos, y_pos), Point((0 - b_pos) / m_pos, 0), Scalar(200, 200, 200), 3);
-    line(mat, Point((y_des - b_des) / m_des, y_des), Point((0 - b_des) / m_des, 0), Scalar(200, 200, 200), 3);
+    //line(mat, Point(0,0), Point(10, 10), Scalar(200, 200, 200), 3);
+    //line(mat, Point((y_pos - b_pos) / m_pos, y_pos), Point((0 - b_pos) / m_pos, 0), Scalar(200, 200, 200), 3);
+    //line(mat, Point((y_des - b_des) / m_des, y_des), Point((0 - b_des) / m_des, 0), Scalar(200, 200, 200), 3);
 
 
-    cv::imshow("birds", mat);
+    //cv::imshow("birds", mat);
 
 
     double radius = 0;
     if (m_pos != m_des)
     {
-        double x_center = (m_des * m_pos) * (b_des - b_pos) / (m_pos - m_des);
-        double y_center = (-1 / m_pos) * x_center + b_pos;
+        double x_center = (b_des - b_pos) / (m_pos - m_des);
+        double y_center = m_pos * x_center + b_pos;
+        std::cout << "center: (" << x_center << ", " << y_center << ")" << std::endl;
 
         radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
 

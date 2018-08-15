@@ -118,9 +118,9 @@ int main(int argc, char* argv[])
     Mat frame;
     cap >> frame;
     
-    // SerialCommunication serial(serial_port, serial_baud);
+    SerialCommunication serial(serial_port, serial_baud);
 
-    // serial.run();
+    serial.run();
     Lane lane(config_path);
     Detector detector(config_path, frame.rows, frame.cols);
 
@@ -147,13 +147,13 @@ int main(int argc, char* argv[])
             detector.drawLane(frame, lane);
 
             //sends message
-            //double radius = detector.getTurningRadius(lane);
+            double radius = detector.getTurningRadius(lane);
 
-            // if (radius > 0) {
-            //     sendMessage(&serial, 15);
-            // } else {
-            //     sendMessage(&serial, -15);
-            // }
+            if (radius > 0) {
+                sendMessage(&serial, 15);
+            } else {
+                sendMessage(&serial, -15);
+            }
 
             //show image
             imshow("output", frame);
