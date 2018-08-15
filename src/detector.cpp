@@ -65,7 +65,7 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     thresh(frame, th, img_threshold);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
 
-    imshow("birds", dst);
+    //imshow("birds", dst);
     
     int width = dst.cols;
     int height = dst.rows;
@@ -129,6 +129,9 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
     
     lane.update(l_new, r_new);
+
+    //getTurningRadius(lane, dst);
+
 }
 
 /**
@@ -243,18 +246,30 @@ std::vector<double> derivative(std::vector<double> params)
  * Calculates the turning radius of the vehicle
  * @return Turning radius of vehcile
  */
-double Detector::getTurningRadius(Lane &lane)
+double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
 {  
     auto params = lane.getParams();         // vector
     double y_pos = (double)frame_height;
     double x_pos = polynomial(params, y_pos);
-    double m_pos = M_PI/2 + 0.001;          // 0.001 to avoid division by 0
-    double b_pos = m_pos*x_pos - y_pos;
+    double m_pos = 1 / 0.000001;          // 0.001 to avoid division by 0
+    double b_pos = y_pos - (m_pos * x_pos);
 
     double y_des = (double)frame_height * 0.25;
     double x_des = polynomial(params, y_des);
     double m_des = polynomial(derivative(params), y_des);
-    double b_des = m_des * x_des - y_des;
+    double b_des = y_des - m_des * x_des;
+
+    // std::cout << "y = " << m_pos << "x + " << b_pos << std::endl;
+
+    // //(frame_height - b_pos) / m_pos
+    // m_pos *= -1;
+    // m_des *= -1;
+    // line(mat, Point((y_pos - b_pos) / m_pos, y_pos), Point((0 - b_pos) / m_pos, 0), Scalar(200, 200, 200), 3);
+    // line(mat, Point((y_des - b_des) / m_des, y_des), Point((0 - b_des) / m_des, 0), Scalar(200, 200, 200), 3);
+
+
+    // cv::imshow("birds", mat);
+
 
     double radius = 0;
     if (m_pos != m_des)
