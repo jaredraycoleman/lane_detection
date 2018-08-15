@@ -27,7 +27,7 @@ using namespace cv;
 void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
-    command1.speed = 0;
+    command1.speed = 10;
     command1.maxTime = 300;
     command1.distance = 0;
     command1.dir = 1;
@@ -115,19 +115,20 @@ int main(int argc, char* argv[])
     }
 
 
+    Mat frame;
+    cap >> frame;
+    
     SerialCommunication serial(serial_port, serial_baud);
 
     serial.run();
     Lane lane(config_path);
-    Detector detector(config_path);
+    Detector detector(config_path, frame.rows, frame.cols);
 
     if(!cap.isOpened()) return -1;
 
     //namedWindow("original", 1);
     namedWindow("output", 1);
     namedWindow("birds", 1);
-    Mat frame;
-    cap >> frame;
     int i = 0;
 
     while(true)
@@ -149,9 +150,9 @@ int main(int argc, char* argv[])
             double radius = detector.getTurningRadius(lane);
 
             if (radius > 0) {
-                sendMessage(&serial, 50);
+                sendMessage(&serial, 15);
             } else {
-                sendMessage(&serial, -50);
+                sendMessage(&serial, -15);
             }
 
             //show image

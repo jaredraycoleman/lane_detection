@@ -19,7 +19,7 @@ void thresh(cv::Mat &src, cv::Mat &dst, int threshold);
 
 //-----CLASS METHODS-----//
 
-Detector::Detector(string config_path)
+Detector::Detector(string config_path, int cam_height, int cam_width)
 {
     libconfig::Config cfg;
     try
@@ -37,26 +37,13 @@ Detector::Detector(string config_path)
         double frame_floor = cfg.lookup("camera.frame.floor");
         double frame_ceiling = cfg.lookup("camera.frame.ceiling");
        
-        VideoCapture cap;
-        if (cfg.exists("video.index")) {
-            int index = cfg.lookup("video.index");
-            cap = VideoCapture(index);
-        } else {
-            std::string path = cfg.lookup("video.file").c_str();
-            path = abs_path(path, get_dir(config_path));
-            cap = VideoCapture(path);
-        }
-        Mat frame;
-        cap >> frame;
-
-        frame_height = frame.rows;
-        frame_width = frame.cols;        
+        frame_height = cam_height; 
+        frame_width = cam_width;        
         m_per_px = (double)cfg.lookup("camera.range") / frame_height;
 
         
-        matrix_transform_birdseye = getTransformMatrix(frame, cam_angle, frame_floor, frame_ceiling);
-        matrix_transform_fiperson = getTransformMatrix(frame, cam_angle, frame_floor, frame_ceiling, true);
-        cap.release();
+        matrix_transform_birdseye = getTransformMatrix(cam_height, cam_width, cam_angle, frame_floor, frame_ceiling);
+        matrix_transform_fiperson = getTransformMatrix(cam_height, cam_width, cam_angle, frame_floor, frame_ceiling, true);
     }
     catch(...)
     {
@@ -177,10 +164,8 @@ void Detector::drawLane(Mat &img, Lane &lane)
  * @param undo If undo is true, return the matrix for transforming from birdseye to first-person perspective
  * @return perspective transform matrix
  */
-Mat Detector::getTransformMatrix(Mat frame, double angle, double perc_low, double perc_high, bool undo)
+Mat Detector::getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo)
 {
-    int width = frame.cols;
-    int height = frame.rows;
     int low = (int)(perc_low * height);
     int high = (int)(perc_high * height);
     int left = (int)(high / tan(angle));

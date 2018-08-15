@@ -29,10 +29,10 @@ private:
     int frame_height;
     double m_per_px;
     
-    Mat getTransformMatrix(Mat frame, double angle, double perc_low, double perc_high, bool undo=false);
+    Mat getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo=false);
 
 public:
-    Detector(string config_path);
+    Detector(string config_path, int cam_height, int cam_width);
     void getLanes(const Mat &img, Lane &lane);
     void drawLane(Mat &img, Lane &lane);
 
