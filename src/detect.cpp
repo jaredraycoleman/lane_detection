@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
             detector.drawLane(frame, lane);
 
             //sends message
-            double radius = detector.getTurningRadius(lane);
+            //double radius = detector.getTurningRadius(lane);
 
             // if (radius > 0) {
             //     sendMessage(&serial, 15);

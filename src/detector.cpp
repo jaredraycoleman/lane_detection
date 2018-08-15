@@ -130,7 +130,7 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     
     lane.update(l_new, r_new);
 
-    //getTurningRadius(lane, dst);
+    getTurningRadius(lane, dst);
 
 }
 
@@ -246,7 +246,7 @@ std::vector<double> derivative(std::vector<double> params)
  * Calculates the turning radius of the vehicle
  * @return Turning radius of vehcile
  */
-double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
+double Detector::getTurningRadius(Lane &lane, Mat &mat)
 {  
     auto params = lane.getParams();         // vector
     double y_pos = (double)frame_height;
@@ -259,16 +259,14 @@ double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
     double m_des = polynomial(derivative(params), y_des);
     double b_des = y_des - m_des * x_des;
 
-    // std::cout << "y = " << m_pos << "x + " << b_pos << std::endl;
+    std::cout << "y = " << m_pos << "x + " << b_pos << std::endl;
 
-    // //(frame_height - b_pos) / m_pos
-    // m_pos *= -1;
-    // m_des *= -1;
-    // line(mat, Point((y_pos - b_pos) / m_pos, y_pos), Point((0 - b_pos) / m_pos, 0), Scalar(200, 200, 200), 3);
-    // line(mat, Point((y_des - b_des) / m_des, y_des), Point((0 - b_des) / m_des, 0), Scalar(200, 200, 200), 3);
+    //(frame_height - b_pos) / m_pos
+    line(mat, Point((y_pos - b_pos) / m_pos, y_pos), Point((0 - b_pos) / m_pos, 0), Scalar(200, 200, 200), 3);
+    line(mat, Point((y_des - b_des) / m_des, y_des), Point((0 - b_des) / m_des, 0), Scalar(200, 200, 200), 3);
 
 
-    // cv::imshow("birds", mat);
+    cv::imshow("birds", mat);
 
 
     double radius = 0;
