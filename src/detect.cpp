@@ -113,18 +113,27 @@ int main(int argc, char* argv[])
     int skip_frames;
     int serial_baud;
     SerialCommunication *serial = nullptr;
+    bool show_output = false;
     try
     {
         libconfig::Config cfg;
         cfg.readFile(config_path.c_str());
 
-        if (cfg.exists("video.index")) {
+        if (cfg.exists("video.index")) 
+        {
             int index = cfg.lookup("video.index");
             cap = VideoCapture(index);
-        } else {
+        } 
+        else 
+        {
             std::string path(cfg.lookup("video.file").c_str());
             path = abs_path(path, get_dir(config_path));
             cap = VideoCapture(path);
+        }
+
+        if (cfg.exists("video.show")) 
+        {
+            show_output = cfg.lookup("video.show");
         }
 
         skip_frames = cfg.lookup("video.skip_frames");
@@ -156,10 +165,10 @@ int main(int argc, char* argv[])
 
     if(!cap.isOpened()) return -1;
 
-    //namedWindow("original", 1);
-    //namedWindow("output", 1);
-    //namedWindow("birds", 1);
-    int i = 0;
+    if (show_output) 
+    {
+        namedWindow("output", 1);
+    }
 
     Mat current_frame = frame;
     std::mutex mtx;
@@ -176,8 +185,13 @@ int main(int argc, char* argv[])
 
             //imshow("original", frame);
             detector.getLanes(frame, lane);
-            //draw lanes
-            detector.drawLane(frame, lane);
+            
+            if (show_output) 
+            {
+                //draw lanes
+                detector.drawLane(frame, lane);
+                imshow("output", frame);
+            }
 
             //sends message
             double radius = detector.getTurningRadius(lane);
