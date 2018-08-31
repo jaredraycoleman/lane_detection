@@ -183,7 +183,6 @@ int main(int argc, char* argv[])
             frame = current_frame.clone();
             mtx.unlock();
 
-            //imshow("original", frame);
             detector.getLanes(frame, lane);
             
             if (show_output) 
@@ -208,8 +207,6 @@ int main(int argc, char* argv[])
                 }
             }
 
-            //show image
-            //imshow("output", frame);
             waitKey(1);
         }
         catch(cv::Exception e)
