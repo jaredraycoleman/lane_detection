@@ -114,9 +114,10 @@ int main(int argc, char* argv[])
             serial = new SerialCommunication(serial_port, serial_baud);
         }
     }
-    catch(...)
+    catch(const std::exception &exc)
     {
         cerr << "Invalid config file" << endl;
+        cerr << exc.what() << endl;
         return 0;
     }
 
