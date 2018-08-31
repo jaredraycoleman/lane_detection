@@ -13,6 +13,8 @@ using namespace std;
 #include <string.h>
 #include <libconfig.h++>
 #include <algorithm>
+#include <thread>
+#include <mutex>
 
 #include "opencv2/opencv.hpp"
 
@@ -69,6 +71,26 @@ void receive(LDMap ldmap)
 
   std::cout << "Position: " << vec_to_string(position) << std::endl;
   std::cout << "Speed: " << vec_to_string(speed) << std::endl;
+}
+
+void process_frames(VideoCapture *cap, Mat *current_frame, std::mutex *mtx) 
+{
+    Mat frame = *current_frame;
+    while(true)
+    {
+        try
+        {
+            mtx->lock();
+            (*cap) >> frame;
+            mtx->unlock();
+            waitKey(1);
+        }
+        catch(cv::Exception e)
+        {
+            cout << e.what() << endl;
+            break;
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -139,16 +161,19 @@ int main(int argc, char* argv[])
     //namedWindow("birds", 1);
     int i = 0;
 
+    Mat current_frame = frame;
+    std::mutex mtx;
+    std::thread cap_thread(process_frames, &cap, &current_frame, &mtx);
+
     while(true)
     {
         try
         {
             //get frame from stream
-            cap >> frame;
-            if (skip_frames != 0 && i++ % skip_frames != 0)
-            {
-                continue;
-            }
+            mtx.lock();
+            frame = current_frame.clone();
+            mtx.unlock();
+
             //imshow("original", frame);
             detector.getLanes(frame, lane);
             //draw lanes
