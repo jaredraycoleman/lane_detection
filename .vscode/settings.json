@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.h++": "cpp",
+        "*.ipp": "cpp",
+        "system_error": "cpp"
+    }
+}

@@ -90,6 +90,7 @@ int main(int argc, char* argv[])
     string serial_port;
     int skip_frames;
     int serial_baud;
+    SerialCommunication *serial = nullptr;
     try
     {
         libconfig::Config cfg;
@@ -105,8 +106,13 @@ int main(int argc, char* argv[])
         }
 
         skip_frames = cfg.lookup("video.skip_frames");
-        serial_port = cfg.lookup("serial.port").c_str();
-        serial_baud = cfg.lookup("serial.baud");
+
+        if (cfg.exists("serial.port") && cfg.exists("serial.baud")) 
+        {
+            serial_port = cfg.lookup("serial.port").c_str();
+            serial_baud = cfg.lookup("serial.baud");
+            serial = new SerialCommunication(serial_port, serial_baud);
+        }
     }
     catch(...)
     {
@@ -117,18 +123,19 @@ int main(int argc, char* argv[])
 
     Mat frame;
     cap >> frame;
-    
-    SerialCommunication serial(serial_port, serial_baud);
 
-    serial.run();
+    if (serial != nullptr) 
+    {
+        serial->run();
+    }
     Lane lane(config_path);
     Detector detector(config_path, frame.rows, frame.cols);
 
     if(!cap.isOpened()) return -1;
 
     //namedWindow("original", 1);
-    namedWindow("output", 1);
-    namedWindow("birds", 1);
+    //namedWindow("output", 1);
+    //namedWindow("birds", 1);
     int i = 0;
 
     while(true)
@@ -149,14 +156,20 @@ int main(int argc, char* argv[])
             //sends message
             double radius = detector.getTurningRadius(lane);
 
-            if (radius > 0) {
-                sendMessage(&serial, 15);
-            } else {
-                sendMessage(&serial, -15);
+            if (serial != nullptr) 
+            {
+                if (radius > 0) 
+                {
+                    sendMessage(serial, 15);
+                } 
+                else 
+                {
+                    sendMessage(serial, -15);
+                }
             }
 
             //show image
-            imshow("output", frame);
+            //imshow("output", frame);
             waitKey(1);
         }
         catch(cv::Exception e)
