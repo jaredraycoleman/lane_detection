@@ -24,6 +24,11 @@ using namespace std;
 
 using namespace cv;
 
+/**
+ * Send a message to the serial 
+ * @param serial SerialCommunication object
+ * @param angle Angle (in degrees) to rotate
+ */
 void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
@@ -38,6 +43,10 @@ void sendMessage(SerialCommunication *serial, int8_t angle)
 vector<int> position {0, 0, 0};
 vector<int> speed {0, 0, 0};
 
+/**
+ * Converts a vector to a string
+ * @param vec vector of integers
+ */
 std::string vec_to_string(std::vector<int> vec)
 {
     std::ostringstream oss;
@@ -48,6 +57,10 @@ std::string vec_to_string(std::vector<int> vec)
     return oss.str();
 }
 
+/**
+ * Gets the magnitude of a vector of integers
+ * @param vec vector of integers
+ */
 double vec_magnitude(std::vector<int> vec)
 {
     double sum = 0.0;
@@ -58,17 +71,21 @@ double vec_magnitude(std::vector<int> vec)
     return sum / vec.size();
 }
 
+/**
+ * Callback method execute on receiving
+ * @param ldmap Local Dynamic Map
+ */
 void receive(LDMap ldmap)
 {
-  position[0] = ldmap.position_x;
-  position[1] = ldmap.position_y;
-  position[2] = ldmap.position_z;
-  speed[0] = ldmap.speed_x;
-  speed[1] = ldmap.speed_y;
-  speed[2] = ldmap.speed_z;
+    position[0] = ldmap.position_x;
+    position[1] = ldmap.position_y;
+    position[2] = ldmap.position_z;
+    speed[0] = ldmap.speed_x;
+    speed[1] = ldmap.speed_y;
+    speed[2] = ldmap.speed_z;
 
-  std::cout << "Position: " << vec_to_string(position) << std::endl;
-  std::cout << "Speed: " << vec_to_string(speed) << std::endl;
+    std::cout << "Position: " << vec_to_string(position) << std::endl;
+    std::cout << "Speed: " << vec_to_string(speed) << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -104,7 +121,6 @@ int main(int argc, char* argv[])
             cap = VideoCapture(path);
         }
 
-        skip_frames = cfg.lookup("video.skip_frames");
         serial_port = cfg.lookup("serial.port").c_str();
         serial_baud = cfg.lookup("serial.baud");
     }
@@ -126,24 +142,14 @@ int main(int argc, char* argv[])
 
     if(!cap.isOpened()) return -1;
 
-    //namedWindow("original", 1);
     namedWindow("output", 1);
-    namedWindow("birds", 1);
-    int i = 0;
-
     while(true)
     {
         try
         {
             //get frame from stream
             cap >> frame;
-            if (skip_frames != 0 && i++ % skip_frames != 0)
-            {
-                continue;
-            }
-            //imshow("original", frame);
             detector.getLanes(frame, lane);
-            //draw lanes
             detector.drawLane(frame, lane);
 
             //sends message

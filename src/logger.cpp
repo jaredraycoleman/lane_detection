@@ -13,6 +13,9 @@ bool Logger::console = true;
 bool Logger::is_init = false;
 Levels Logger::severity = Levels::INFO;
 
+/**
+ * Only provided constructor for Logger
+ */
 Logger::Logger()
 {
       static const string COMMON_FMT("[%TimeStamp%][%Severity%]%Message%");
@@ -68,6 +71,11 @@ Logger::Logger()
       );
 
 }
+
+/**
+ * Turns tags into a string
+ * @param tags vector of tags to append
+ */
 string Logger::append_tag(vector<string> tags)
 {
   ostringstream ss;
@@ -84,6 +92,13 @@ string Logger::append_tag(vector<string> tags)
   return ss.str();
 }
 
+/**
+ * Logs an event
+ * @param src Source of log event
+ * @param msg Message of log event
+ * @param severity Severity of log
+ * @param tags Tags of log
+ */
 void Logger::log(string src, string msg, Levels severity, const vector<string> &tags)
 {
   string message;
@@ -116,8 +131,10 @@ void Logger::log(string src, string msg, Levels severity, const vector<string> &
   }
 
 }
-//static methods
 
+/**
+ * Gets the singleton logger
+ */
 Logger Logger::getLogger()
 {
   is_init = true;
@@ -125,6 +142,12 @@ Logger Logger::getLogger()
   return logger;
 }
 
+/**
+ * Initialized the logger
+ * @param console If true, log events are printed to console
+ * @param file file to print log events to
+ * @param severity Severity of log events to log (Lower severity log events will be ignored)
+ */
 void Logger::init(bool console, string file, Levels severity)
 {
   if (!is_init)
@@ -132,6 +155,5 @@ void Logger::init(bool console, string file, Levels severity)
     Logger::console = console;
     Logger::file = file;
     Logger::severity = severity;
-
   }
 }

@@ -7,11 +7,9 @@
 
 #include <assert.h>
 
-
 /**
  * Only provided constructor for Lane.
- * @param degree Degree of polynomial that defines lanes.
- * @param filter Filter for curve to remove jitter.
+ * @param config_path path to config file
  */ 
 Lane::Lane(std::string config_path)
 { 
@@ -36,8 +34,8 @@ Lane::Lane(std::string config_path)
 
 /**
  * Updates left and right lane polynomial coefficients.
- * @param l_new Array of size degree. Defines coefficients for left lane curve.
- * @param r_new Array of size degree. Defines coefficients for right lane curve.
+ * @param l Array of size degree. Defines coefficients for left lane curve.
+ * @param r Array of size degree. Defines coefficients for right lane curve.
  */
 void Lane::update(std::vector<double> l, std::vector<double> r)
 {

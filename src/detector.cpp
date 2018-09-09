@@ -65,8 +65,6 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     thresh(frame, th, img_threshold);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
 
-    //imshow("birds", dst);
-    
     int width = dst.cols;
     int height = dst.rows;
     
@@ -129,9 +127,6 @@ void Detector::getLanes(const Mat &img, Lane &lane)
     polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
     
     lane.update(l_new, r_new);
-
-    //getTurningRadius(lane, dst);
-
 }
 
 /**
@@ -159,8 +154,6 @@ void Detector::drawLane(Mat &img, Lane &lane)
     }
 }
 
-
-
 /**
  * Gets the perpective transform matrix for warping an image to birdseye perspective
  * @param img Image to generate matrix for
@@ -185,7 +178,6 @@ Mat Detector::getTransformMatrix(int height, int width, double angle, double per
     else m = getPerspectiveTransform(&src[0], &dst[0]);
     return m;
 }
-
 
 //-----NON CLASS METHODS-----//
 
@@ -240,8 +232,6 @@ std::vector<double> derivative(std::vector<double> params)
     return deriv;
 }
 
-
-
 /**
  * Calculates the turning radius of the vehicle
  * @return Turning radius of vehcile
@@ -258,18 +248,6 @@ double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
     double x_des = (int)polynomial(params, y_des);
     double m_des = -1 / polynomial(derivative(params), y_des);
     double b_des = y_des - m_des * x_des;
-
-    //auto deriv = derivative(params);
-    //std::cout << "y = " << m_des << "x + " << b_des << std::endl;
-
-    //(frame_height - b_pos) / m_pos
-    //line(mat, Point(0,0), Point(10, 10), Scalar(200, 200, 200), 3);
-    //line(mat, Point((y_pos - b_pos) / m_pos, y_pos), Point((0 - b_pos) / m_pos, 0), Scalar(200, 200, 200), 3);
-    //line(mat, Point((y_des - b_des) / m_des, y_des), Point((0 - b_des) / m_des, 0), Scalar(200, 200, 200), 3);
-
-
-    //cv::imshow("birds", mat);
-
 
     double radius = 0;
     if (m_pos != m_des)
@@ -293,39 +271,39 @@ double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
     return radius;
 }
 
-// /**
-//  * Calculate the ackermann steering angle for vehcile
-//  * @returns two-element vector (left and right wheel) of steering angles
-//  */
-// std::vector<double> Detector::AckermannSteering()
-// {
-//     double radius = this->getTurningRadius();
+/**
+ * Calculate the ackermann steering angle for vehcile
+ * @returns two-element vector (left and right wheel) of steering angles
+ */
+std::vector<double> Detector::AckermannSteering()
+{
+    double radius = this->getTurningRadius();
 
-//     std::vector<double> steering_angle{0, 0};
-//     if (radius != 0)
-//     {
-//         steering_angle[0] = atan2(vehicle_length, radius + (vehicle_width/2));
-//         steering_angle[1] = atan2(vehicle_length, radius + (vehicle_width/2));
-//     }
+    std::vector<double> steering_angle{0, 0};
+    if (radius != 0)
+    {
+        steering_angle[0] = atan2(vehicle_length, radius + (vehicle_width/2));
+        steering_angle[1] = atan2(vehicle_length, radius + (vehicle_width/2));
+    }
 
-//     return steering_angle;
-// }
+    return steering_angle;
+}
 
-// /**
-//  * Calculate the differential steering velocities for vehcile
-//  * @returns two-element vector (left and right wheel) of steering velocities 
-//  */
-// std::vector<double> Detector::DifferentialSteering(double speed)
-// {
-//     double radius = this->getTurningRadius();
+/**
+ * Calculate the differential steering velocities for vehcile
+ * @returns two-element vector (left and right wheel) of steering velocities 
+ */
+std::vector<double> Detector::DifferentialSteering(double speed)
+{
+    double radius = this->getTurningRadius();
 
-//     std::vector<double> differential{0, 0};
-//     if (radius != 0)
-//     {
-//         double temp = vehicle_width / (2 * radius);
-//         differential.at(0) = speed * (1 + temp);
-//         differential.at(1) = speed * (1 - temp);
-//     }
+    std::vector<double> differential{0, 0};
+    if (radius != 0)
+    {
+        double temp = vehicle_width / (2 * radius);
+        differential.at(0) = speed * (1 + temp);
+        differential.at(1) = speed * (1 - temp);
+    }
 
-//     return differential;
-// }
+    return differential;
+}
