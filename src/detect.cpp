@@ -88,6 +88,19 @@ void receive(LDMap ldmap)
     std::cout << "Speed: " << vec_to_string(speed) << std::endl;
 }
 
+/**
+ * Captures an image from a connected camera
+ * @param index Index of camera to capture from
+ * @param frame Frame to put result in
+ * @returns frame from camera
+ */
+Mat capture(int index, Mat *frame) 
+{
+    VideoCapture cap(index);
+    cap >> (*frame);
+    cap.close();
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -107,18 +120,17 @@ int main(int argc, char* argv[])
     string serial_port;
     int skip_frames;
     int serial_baud;
+    int index = -1;
+    string path = "";
     try
     {
         libconfig::Config cfg;
         cfg.readFile(config_path.c_str());
 
         if (cfg.exists("video.index")) {
-            int index = cfg.lookup("video.index");
-            cap = VideoCapture(index);
+            index = cfg.lookup("video.index");
         } else {
-            std::string path(cfg.lookup("video.file").c_str());
-            path = abs_path(path, get_dir(config_path));
-            cap = VideoCapture(path);
+            path = abs_path(cfg.lookup("video.file").c_str(), get_dir(config_path));
         }
 
         serial_port = cfg.lookup("serial.port").c_str();
@@ -129,7 +141,6 @@ int main(int argc, char* argv[])
         cerr << "Invalid config file" << endl;
         return 0;
     }
-
 
     Mat frame;
     cap >> frame;
@@ -148,7 +159,14 @@ int main(int argc, char* argv[])
         try
         {
             //get frame from stream
-            cap >> frame;
+            if (index != -1)
+            {
+                capture(index, &frame);
+            }
+            else 
+            {
+                cap >> frame;
+            }
             detector.getLanes(frame, lane);
             detector.drawLane(frame, lane);
 
