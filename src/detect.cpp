@@ -13,6 +13,8 @@ using namespace std;
 #include <string.h>
 #include <libconfig.h++>
 #include <algorithm>
+#include <thread>
+#include <mutex>
 
 #include "opencv2/opencv.hpp"
 
@@ -101,6 +103,26 @@ Mat capture(int index, Mat *frame)
     cap.close();
 }
 
+void process_frames(VideoCapture *cap, Mat *current_frame, std::mutex *mtx) 
+{
+    Mat frame = *current_frame;
+    while(true)
+    {
+        try
+        {
+            mtx->lock();
+            (*cap) >> frame;
+            mtx->unlock();
+            waitKey(1);
+        }
+        catch(cv::Exception e)
+        {
+            cout << e.what() << endl;
+            break;
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -122,38 +144,67 @@ int main(int argc, char* argv[])
     int serial_baud;
     int index = -1;
     string path = "";
+    SerialCommunication *serial = nullptr;
+    bool show_output = false;
     try
     {
         libconfig::Config cfg;
         cfg.readFile(config_path.c_str());
 
-        if (cfg.exists("video.index")) {
-            index = cfg.lookup("video.index");
-        } else {
-            path = abs_path(cfg.lookup("video.file").c_str(), get_dir(config_path));
+        if (cfg.exists("video.index")) 
+        {
+            int index = cfg.lookup("video.index");
+            cap = VideoCapture(index);
+        } 
+        else 
+        {
+            std::string path(cfg.lookup("video.file").c_str());
+            path = abs_path(path, get_dir(config_path));
+            cap = VideoCapture(path);
         }
 
-        serial_port = cfg.lookup("serial.port").c_str();
-        serial_baud = cfg.lookup("serial.baud");
+        if (cfg.exists("video.show")) 
+        {
+            show_output = cfg.lookup("video.show");
+        }
+
+        skip_frames = cfg.lookup("video.skip_frames");
+
+        if (cfg.exists("serial.port") && cfg.exists("serial.baud")) 
+        {
+            serial_port = cfg.lookup("serial.port").c_str();
+            serial_baud = cfg.lookup("serial.baud");
+            serial = new SerialCommunication(serial_port, serial_baud);
+        }
     }
-    catch(...)
+    catch(const std::exception &exc)
     {
         cerr << "Invalid config file" << endl;
+        cerr << exc.what() << endl;
         return 0;
     }
 
     Mat frame;
     cap >> frame;
-    
-    SerialCommunication serial(serial_port, serial_baud);
 
-    serial.run();
+    if (serial != nullptr) 
+    {
+        serial->run();
+    }
     Lane lane(config_path);
     Detector detector(config_path, frame.rows, frame.cols);
 
     if(!cap.isOpened()) return -1;
 
-    namedWindow("output", 1);
+    if (show_output) 
+    {
+        namedWindow("output", 1);
+    }
+
+    Mat current_frame = frame;
+    std::mutex mtx;
+    std::thread cap_thread(process_frames, &cap, &current_frame, &mtx);
+
     while(true)
     {
         try
@@ -167,20 +218,31 @@ int main(int argc, char* argv[])
             {
                 cap >> frame;
             }
+
             detector.getLanes(frame, lane);
-            detector.drawLane(frame, lane);
+            
+            if (show_output) 
+            {
+                //draw lanes
+                detector.drawLane(frame, lane);
+                imshow("output", frame);
+            }
 
             //sends message
             double radius = detector.getTurningRadius(lane);
 
-            if (radius > 0) {
-                sendMessage(&serial, 15);
-            } else {
-                sendMessage(&serial, -15);
+            if (serial != nullptr) 
+            {
+                if (radius > 0) 
+                {
+                    sendMessage(serial, 15);
+                } 
+                else 
+                {
+                    sendMessage(serial, -15);
+                }
             }
 
-            //show image
-            imshow("output", frame);
             waitKey(1);
         }
         catch(cv::Exception e)

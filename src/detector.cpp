@@ -236,7 +236,7 @@ std::vector<double> derivative(std::vector<double> params)
  * Calculates the turning radius of the vehicle
  * @return Turning radius of vehcile
  */
-double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
+double Detector::getTurningRadius(Lane &lane)
 {  
     auto params = lane.getParams();         // vector
     double y_pos = (double)frame_height;
@@ -246,7 +246,7 @@ double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
 
     double y_des = (double)frame_height * 0.25;
     double x_des = (int)polynomial(params, y_des);
-    double m_des = -1 / polynomial(derivative(params), y_des);
+    double m_des = -1 * polynomial(derivative(params), y_des);
     double b_des = y_des - m_des * x_des;
 
     double radius = 0;
@@ -263,6 +263,7 @@ double Detector::getTurningRadius(Lane &lane) //, Mat &mat)
             radius *= -1;
 
         radius *= this->m_per_px;
+        std::cout << "radius: " << radius << std::endl;
     }
 
     std::ostringstream oss;
