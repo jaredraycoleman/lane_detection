@@ -9,6 +9,7 @@ using namespace std;
 
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <cstdlib>
 
 using namespace cv;
 
@@ -284,9 +285,14 @@ std::vector<double> Detector::getAckermannSteering(Lane &lane)
     double radius = this->getTurningRadius(lane);
     std::vector<double> steering_angle{0, 0};
     if (radius != 0)
-    {
-        steering_angle[0] = atan2(vehicle_length, radius + (vehicle_width/2));
-        steering_angle[1] = atan2(vehicle_length, radius + (vehicle_width/2));
+    {=
+        steering_angle[0] = atan2(vehicle_length, std::abs(radius) + (vehicle_width/2));
+        steering_angle[1] = atan2(vehicle_length, std::abs(radius) + (vehicle_width/2));
+    }
+
+    if (radius < 0) {
+        steering_angle[0] *= -1;
+        steering_angle[1] *= -1;
     }
 
     return steering_angle;

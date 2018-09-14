@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
             }
 
             //sends message
-            double angle = detector.getDifferentialSteering(lane);
+            double angle = detector.getAckermannSteering(lane)[0];
 
             if (serial != nullptr) 
             {
