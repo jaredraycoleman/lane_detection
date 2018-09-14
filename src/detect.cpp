@@ -36,7 +36,7 @@ void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
     command1.speed = 5;
-    command1.maxTime = 500;
+    command1.maxTime = 200;
     command1.distance = 0;
     command1.dir = 1;
     command1.orientation = angle;
@@ -230,11 +230,12 @@ int main(int argc, char* argv[])
             }
 
             //sends message
-            double angle = detector.getAckermannSteering(lane)[0];
+            double angle = detector.getAckermannSteering(lane)[0] * 180 / 3.14;
 
+            std::cout << "Angle (Degrees): " << angle << std::endl;
             if (serial != nullptr) 
             {
-                sendMessage(serial, angle);
+                sendMessage(serial, 0.4 * angle);
             }
 
             waitKey(1);

@@ -248,7 +248,7 @@ double Detector::getTurningRadius(Lane &lane)
     double m_pos = 0.0001; // 1 / infinity         // 0.001 to avoid division by 0
     double b_pos = y_pos - (m_pos * x_pos);
 
-    double y_des = (double)frame_height * 0.25;
+    double y_des = (double)frame_height * 0.0; //0.5; // 0.25;
     double x_des = (int)polynomial(params, y_des);
     double m_des = -1 * polynomial(derivative(params), y_des);
     double b_des = y_des - m_des * x_des;
