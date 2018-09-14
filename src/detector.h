@@ -40,8 +40,8 @@ public:
     void drawLane(Mat &img, Lane &lane);
 
     double getTurningRadius(Lane &lane);
+    double getDifferentialSteering(Lane &lane);
     std::vector<double> getAckermannSteering(Lane &lane);
-    std::vector<double> getDifferentialSteering(Lane &lane, double speed);
 };
 
 #endif

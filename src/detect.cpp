@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
             }
 
             //sends message
-            double angle = detector.getAckermannSteering(lane)[0] * 180 / 3.14;
+            double angle = detector.getDifferentialSteering(lane) * 180 / 3.14;
 
             std::cout << "Angle (Degrees): " << angle << std::endl;
             if (serial != nullptr) 
