@@ -37,6 +37,9 @@ Detector::Detector(string config_path, int cam_height, int cam_width)
         double frame_floor = cfg.lookup("camera.frame.floor");
         double frame_ceiling = cfg.lookup("camera.frame.ceiling");
        
+        vehicle_length = cfg.lookup("vehicle.length");
+        vehicle_width = cfg.lookup("vehicle.width");
+         
         frame_height = cam_height; 
         frame_width = cam_width;        
         m_per_px = (double)cfg.lookup("camera.range") / frame_height;
@@ -278,8 +281,7 @@ double Detector::getTurningRadius(Lane &lane)
  */
 std::vector<double> Detector::AckermannSteering()
 {
-    double radius = this->getTurningRadius();
-
+    double radius = 0.0; //wrong
     std::vector<double> steering_angle{0, 0};
     if (radius != 0)
     {
@@ -296,7 +298,7 @@ std::vector<double> Detector::AckermannSteering()
  */
 std::vector<double> Detector::DifferentialSteering(double speed)
 {
-    double radius = this->getTurningRadius();
+    double radius = 0.0; //wrong 
 
     std::vector<double> differential{0, 0};
     if (radius != 0)

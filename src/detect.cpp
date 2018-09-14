@@ -15,6 +15,7 @@ using namespace std;
 #include <algorithm>
 #include <thread>
 #include <mutex>
+#include <cstdlib>
 
 #include "opencv2/opencv.hpp"
 
@@ -34,8 +35,8 @@ using namespace cv;
 void sendMessage(SerialCommunication *serial, int8_t angle)
 {
     UARTCommand command1, command2;
-    command1.speed = 10;
-    command1.maxTime = 300;
+    command1.speed = 5;
+    command1.maxTime = 500;
     command1.distance = 0;
     command1.dir = 1;
     command1.orientation = angle;
@@ -100,7 +101,7 @@ Mat capture(int index, Mat *frame)
 {
     VideoCapture cap(index);
     cap >> (*frame);
-    cap.close();
+    cap.release();
 }
 
 void process_frames(VideoCapture *cap, Mat *current_frame, std::mutex *mtx) 
@@ -233,13 +234,17 @@ int main(int argc, char* argv[])
 
             if (serial != nullptr) 
             {
-                if (radius > 0) 
+		if (std::abs(radius) > 10)
                 {
-                    sendMessage(serial, 15);
+                    sendMessage(serial, 0);
+                }
+                else if (radius > 0) 
+                {
+                    sendMessage(serial, 3);
                 } 
                 else 
                 {
-                    sendMessage(serial, -15);
+                    sendMessage(serial, -3);
                 }
             }
 

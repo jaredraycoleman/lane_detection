@@ -23,6 +23,9 @@ private:
     int img_threshold;
     Mat matrix_transform_birdseye;
     Mat matrix_transform_fiperson;
+   
+    double vehicle_length;
+    double vehicle_width;
 
     double cam_angle;
     int frame_width;
