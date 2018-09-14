@@ -235,8 +235,6 @@ int main(int argc, char* argv[])
             if (serial != nullptr) 
             {
                 sendMessage(serial, angle);
-
-                cout << angle << endl;
             }
 
             waitKey(1);

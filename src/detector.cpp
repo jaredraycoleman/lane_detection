@@ -258,7 +258,6 @@ double Detector::getTurningRadius(Lane &lane)
     {
         double x_center = (b_des - b_pos) / (m_pos - m_des);
         double y_center = m_pos * x_center + b_pos;
-        std::cout << "center: (" << x_center << ", " << y_center << ")" << std::endl;
 
         radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
 
@@ -294,6 +293,8 @@ std::vector<double> Detector::getAckermannSteering(Lane &lane)
         steering_angle[0] *= -1;
         steering_angle[1] *= -1;
     }
+
+    std::cout << "angle: " << steering_angle[0] << std::endl;
 
     return steering_angle;
 }
