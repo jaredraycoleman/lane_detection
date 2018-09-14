@@ -279,9 +279,9 @@ double Detector::getTurningRadius(Lane &lane)
  * Calculate the ackermann steering angle for vehcile
  * @returns two-element vector (left and right wheel) of steering angles
  */
-std::vector<double> Detector::AckermannSteering()
+std::vector<double> Detector::getAckermannSteering(Lane &lane)
 {
-    double radius = 0.0; //wrong
+    double radius = this->getTurningRadius(lane);
     std::vector<double> steering_angle{0, 0};
     if (radius != 0)
     {
@@ -296,9 +296,9 @@ std::vector<double> Detector::AckermannSteering()
  * Calculate the differential steering velocities for vehcile
  * @returns two-element vector (left and right wheel) of steering velocities 
  */
-std::vector<double> Detector::DifferentialSteering(double speed)
+std::vector<double> Detector::getDifferentialSteering(Lane &lane, double speed)
 {
-    double radius = 0.0; //wrong 
+    double radius = this->getTurningRadius(lane);
 
     std::vector<double> differential{0, 0};
     if (radius != 0)

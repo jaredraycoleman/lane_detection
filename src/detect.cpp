@@ -230,22 +230,13 @@ int main(int argc, char* argv[])
             }
 
             //sends message
-            double radius = detector.getTurningRadius(lane);
+            double angle = detector.getDifferentialSteering(lane);
 
             if (serial != nullptr) 
             {
-		if (std::abs(radius) > 10)
-                {
-                    sendMessage(serial, 0);
-                }
-                else if (radius > 0) 
-                {
-                    sendMessage(serial, 3);
-                } 
-                else 
-                {
-                    sendMessage(serial, -3);
-                }
+                sendMessage(serial, angle);
+
+                cout << angle << endl;
             }
 
             waitKey(1);
