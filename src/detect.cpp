@@ -32,12 +32,12 @@ using namespace cv;
  * @param serial SerialCommunication object
  * @param angle Angle (in degrees) to rotate
  */
-void sendMessage(SerialCommunication *serial, int8_t angle)
+void sendMessage(SerialCommunication *serial, int8_t angle, int16_t distance)
 {
     UARTCommand command1, command2;
     command1.speed = 5;
     command1.maxTime = 500;
-    command1.distance = 0;
+    command1.distance = distance;
     command1.dir = 1;
     command1.orientation = angle;
     serial->sendCommand(&command1);
@@ -230,11 +230,11 @@ int main(int argc, char* argv[])
             }
 
             //sends message
-            double angle = detector.getAckermannSteering(lane)[0];
+            std::vector<double> configuration = detector.getDesiredConfiguration(lane);
 
             if (serial != nullptr) 
             {
-                sendMessage(serial, angle);
+                sendMessage(serial, configuration[0], configuration[1]);
             }
 
             waitKey(1);

@@ -124,6 +124,8 @@ void Detector::getLanes(const Mat &img, Lane &lane)
         }
          
     }
+
+    // std::vector l_meters = px_to_meters(rx, ry);
     
     std::vector<double> l_new(lane.getN(), 0.0);
     std::vector<double> r_new(lane.getN(), 0.0);
@@ -234,6 +236,30 @@ std::vector<double> derivative(std::vector<double> params)
     }
 
     return deriv;
+}
+
+std::vector<double> Detector::getDesiredConfiguration(Lane &lane)
+{
+    auto params = lane.getParams();         // vector
+    double y_pos = (double)frame_height;
+    double x_pos = (int)polynomial(params, y_pos);
+    double m_pos = 0.0001; // 1 / infinity         // 0.001 to avoid division by 0
+    double b_pos = y_pos - (m_pos * x_pos);
+
+    double y_des = (double)frame_height * 0.25;
+    double x_des = (int)polynomial(params, y_des);
+    double m_des = -1 * polynomial(derivative(params), y_des);
+    double b_des = y_des - m_des * x_des;
+
+    double angle = std::atan2(m_des - m_pos, 1 + (m_des * m_pos));
+    double distance = 0.0;
+    for (int i = y_pos; i > y_des; i-=1.0)
+    {
+        distance += std::sqrt(std::pow(polynomial(params, i), 2) + std::pow(i, 2));
+    }
+
+    distance *= m_per_px;
+    return std::vector<double> {angle, distance};
 }
 
 /**

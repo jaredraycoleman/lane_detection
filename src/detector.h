@@ -5,12 +5,11 @@ using namespace std;
 
 #include "opencv2/opencv.hpp"
 #include "lane.h"
+#include "helpers.h"
 
 #include <string>
 #include <cmath>
 #include <vector>
-
-using namespace cv;
 
 class Detector
 {
@@ -21,8 +20,8 @@ private:
     int l_start;
     int r_start;
     int img_threshold;
-    Mat matrix_transform_birdseye;
-    Mat matrix_transform_fiperson;
+    cv::Mat matrix_transform_birdseye;
+    cv::Mat matrix_transform_fiperson;
    
     double vehicle_length;
     double vehicle_width;
@@ -31,15 +30,18 @@ private:
     int frame_width;
     int frame_height;
     double m_per_px;
+
+    cv::VideoCapture cap;
     
-    Mat getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo=false);
+    cv::Mat getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo=false);
 
 public:
-    Detector(string config_path, int cam_height, int cam_width);
-    void getLanes(const Mat &img, Lane &lane);
-    void drawLane(Mat &img, Lane &lane);
+    Detector(string config_path, int, int);
+    void getLanes(const cv::Mat &img, Lane &lane);
+    void drawLane(cv::Mat &img, Lane &lane);
 
     double getTurningRadius(Lane &lane);
+    std::vector<double> getDesiredConfiguration(Lane &lane);
     std::vector<double> getAckermannSteering(Lane &lane);
     std::vector<double> getDifferentialSteering(Lane &lane, double speed);
 };
