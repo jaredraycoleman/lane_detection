@@ -65,19 +65,12 @@ Detector::Detector(string config_path, int cam_height, int cam_width)
  */
 void Detector::getLanes(const Mat &img, Lane &lane)
 {          
-    static int i = 0;      
     Mat th;
     Mat dst;
     Mat frame = img.clone();
     
     thresh(frame, th, img_threshold);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
-
-
-    char buffer[256];
-    sprintf(buffer, "video%i.jpg", i);
-    cv::imwrite(buffer, dst);
-    i++;
 
     int width = dst.cols;
     int height = dst.rows;

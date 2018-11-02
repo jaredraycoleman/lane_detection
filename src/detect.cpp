@@ -124,10 +124,9 @@ int main(int argc, char* argv[])
             std::string path(cfg.lookup("video.file").c_str());
             path = abs_path(path, get_dir(config_path));
             get_frame = std::function<Mat()>([path](){
-                            VideoCapture cap(path);
+                            static VideoCapture cap(path);
                             Mat frame;
                             cap >> frame;
-                            cap.release();
                             return frame;
                       });
         }
@@ -156,8 +155,6 @@ int main(int argc, char* argv[])
 
     Mat frame = get_frame();
 
-    auto writer = VideoWriter("video.xvid", CV_FOURCC('X', 'V', 'I', 'D'), 2, Size(frame.cols, frame.rows));
-
     if (serial != nullptr) 
     {
         serial->run();
@@ -179,14 +176,13 @@ int main(int argc, char* argv[])
             frame = get_frame();
             i++;
             detector.getLanes(frame, lane);
-
-            writer.write(frame);
             
             if (show_output) 
             {
                 //draw lanes
                 detector.drawLane(frame, lane);
                 imshow("output", frame);
+                waitKey(1);
             }
 
             //sends message
@@ -204,14 +200,11 @@ int main(int argc, char* argv[])
             {
                 sendMessage(serial, angle, distance);
             }
-
-            // waitKey(1);
         }
         catch(cv::Exception e)
         {
             std::cout << "Exception: " << e.what() << std::endl;
             break;
         }
-        writer.release();
     }
 }
