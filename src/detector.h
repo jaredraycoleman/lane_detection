@@ -36,10 +36,12 @@ private:
     cv::Mat getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo=false);
 
 public:
-    double getOffset(Lane &lane);
     Detector(string config_path, int, int);
     void getLanes(const cv::Mat &img, Lane &lane);
     void drawLane(cv::Mat &img, Lane &lane);
+
+    std::vector<double> getPidValues(Lane &lane);
+
 
     double getTurningRadius(Lane &lane);
     std::vector<double> getDesiredConfiguration(Lane &lane);

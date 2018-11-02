@@ -10,6 +10,8 @@ using namespace std;
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <cstdlib>
+#include <queue>
+#include <list>
 
 using namespace cv;
 
@@ -242,19 +244,38 @@ std::vector<double> derivative(std::vector<double> params)
     return deriv;
 }
 
-double Detector::getOffset(Lane &lane)
+/**
+ * Calculates offset between previous destination point and current
+ * Values closer to 0 indicate the vehicle is moving correctly (consistently) towards the destination
+ * 
+ * @param lane Lane to follow
+ * @returns offset (in pixels) between current point and last point
+ */
+std::vector<double> Detector::getPidValues(Lane &lane)
 {
     static double horizon_ratio = 0.65;
-    static std::tuple<double, double> point { frame_height * horizon_ratio, frame_width / 2 };
+    static std::queue<double> history;
+    static double integral;
 
     auto params = lane.getParams();
 
     double y = (double)frame_height * horizon_ratio;
     double x = (int)polynomial(params, y);
 
-    double offset = x - std::get<0>(point);
-    point = std::make_tuple(polynomial(params, y), y);
-    return offset;
+    double derivative = 0;
+    if (history.size() > 0)
+    {
+        derivative = x - history.back();
+    }
+
+    history.push(polynomial(params, y));
+    integral += x;
+    if (history.size() > 10)
+    {
+        integral -= history.front();
+        history.pop();
+    }
+    return { x, integral, derivative };
 }
 
 

@@ -185,9 +185,16 @@ int main(int argc, char* argv[])
                 waitKey(1);
             }
 
-            double offset = detector.getOffset(lane);
+            vector<double> pid_values = detector.getPidValues(lane);
 
-            std::cout << "offset: " << offset << std::endl;
+            double p = pid_values[0];
+            double i = pid_values[1];
+            double d = pid_values[2];
+
+            std::cout << "p: " << p << "\n";
+            std::cout << "i: " << i << "\n";
+            std::cout << "d: " << d << "\n";
+            std::cout << std::endl;
 
             //sends message
             // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
