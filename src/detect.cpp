@@ -13,34 +13,48 @@ using namespace std;
 #include <string.h>
 #include <libconfig.h++>
 #include <algorithm>
+#include <functional>
 #include <thread>
 #include <mutex>
 #include <cstdlib>
+#include <unistd.h>
+#include <math.h>
+#include <chrono>
 
 #include "opencv2/opencv.hpp"
 
 #include "lane.h"
 #include "uartcommander.h"
 #include "detector.h"
-#include "logger.h"
 #include "helpers.h"
 
+#define TIMEOUT 500
 using namespace cv;
+
+using time_stamp = std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>;
 
 /**
  * Send a message to the serial 
  * @param serial SerialCommunication object
  * @param angle Angle (in degrees) to rotate
  */
-void sendMessage(SerialCommunication *serial, int8_t angle)
+void sendMessage(SerialCommunication *serial, int8_t angle, int16_t distance)
 {
     UARTCommand command1, command2;
-    command1.speed = 5;
-    command1.maxTime = 500;
-    command1.distance = 0;
+    command1.speed = 10;
+    command1.maxTime = TIMEOUT;
+    command1.distance = distance;
     command1.dir = 1;
     command1.orientation = angle;
     serial->sendCommand(&command1);
+}
+
+void sleep() {
+    static auto t = std::chrono::high_resolution_clock::now();
+    static auto end = t + std::chrono::milliseconds(TIMEOUT);
+    
+    std::this_thread::sleep_until(end);
+    end = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(TIMEOUT);
 }
 
 vector<int> position {0, 0, 0};
@@ -74,56 +88,6 @@ double vec_magnitude(std::vector<int> vec)
     return sum / vec.size();
 }
 
-/**
- * Callback method execute on receiving
- * @param ldmap Local Dynamic Map
- */
-void receive(LDMap ldmap)
-{
-    position[0] = ldmap.position_x;
-    position[1] = ldmap.position_y;
-    position[2] = ldmap.position_z;
-    speed[0] = ldmap.speed_x;
-    speed[1] = ldmap.speed_y;
-    speed[2] = ldmap.speed_z;
-
-    std::cout << "Position: " << vec_to_string(position) << std::endl;
-    std::cout << "Speed: " << vec_to_string(speed) << std::endl;
-}
-
-/**
- * Captures an image from a connected camera
- * @param index Index of camera to capture from
- * @param frame Frame to put result in
- * @returns frame from camera
- */
-Mat capture(int index, Mat *frame) 
-{
-    VideoCapture cap(index);
-    cap >> (*frame);
-    cap.release();
-}
-
-void process_frames(VideoCapture *cap, Mat *current_frame, std::mutex *mtx) 
-{
-    Mat frame = *current_frame;
-    while(true)
-    {
-        try
-        {
-            mtx->lock();
-            (*cap) >> frame;
-            mtx->unlock();
-            waitKey(1);
-        }
-        catch(cv::Exception e)
-        {
-            cout << e.what() << endl;
-            break;
-        }
-    }
-}
-
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -131,20 +95,12 @@ int main(int argc, char* argv[])
         cout << "Usage: " << argv[0] << " <config file>" << endl;
         return 0;
     }
-
-    Logger::init(false, "test.log", Levels::DEBUG);
-    auto logger = Logger::getLogger();
-
     string config_path(argv[1]);
 
-    VideoCapture cap;
 
-
+    std::function<Mat()> get_frame;
     string serial_port;
-    int skip_frames;
     int serial_baud;
-    int index = -1;
-    string path = "";
     SerialCommunication *serial = nullptr;
     bool show_output = false;
     try
@@ -155,13 +111,25 @@ int main(int argc, char* argv[])
         if (cfg.exists("video.index")) 
         {
             int index = cfg.lookup("video.index");
-            cap = VideoCapture(index);
+            get_frame = std::function<Mat()>([index](){
+                            VideoCapture cap(index);
+                            Mat frame;
+                            cap >> frame;
+                            cap.release();
+                            return frame;
+                        });
         } 
         else 
         {
             std::string path(cfg.lookup("video.file").c_str());
             path = abs_path(path, get_dir(config_path));
-            cap = VideoCapture(path);
+            get_frame = std::function<Mat()>([path](){
+                            VideoCapture cap(path);
+                            Mat frame;
+                            cap >> frame;
+                            cap.release();
+                            return frame;
+                      });
         }
 
         if (cfg.exists("video.show")) 
@@ -169,13 +137,14 @@ int main(int argc, char* argv[])
             show_output = cfg.lookup("video.show");
         }
 
-        skip_frames = cfg.lookup("video.skip_frames");
-
         if (cfg.exists("serial.port") && cfg.exists("serial.baud")) 
         {
             serial_port = cfg.lookup("serial.port").c_str();
             serial_baud = cfg.lookup("serial.baud");
             serial = new SerialCommunication(serial_port, serial_baud);
+            serial->register_callback([](const LDMap& ldmap){
+                //std::cout << "orientation: " << ldmap.orientation << std::endl;
+            });
         }
     }
     catch(const std::exception &exc)
@@ -185,8 +154,9 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    Mat frame;
-    cap >> frame;
+    Mat frame = get_frame();
+
+    auto writer = VideoWriter("video.xvid", CV_FOURCC('X', 'V', 'I', 'D'), 2, Size(frame.cols, frame.rows));
 
     if (serial != nullptr) 
     {
@@ -195,32 +165,22 @@ int main(int argc, char* argv[])
     Lane lane(config_path);
     Detector detector(config_path, frame.rows, frame.cols);
 
-    if(!cap.isOpened()) return -1;
-
     if (show_output) 
     {
         namedWindow("output", 1);
     }
 
-    Mat current_frame = frame;
-    std::mutex mtx;
-    std::thread cap_thread(process_frames, &cap, &current_frame, &mtx);
-
+    int i = 0;
     while(true)
     {
         try
         {
             //get frame from stream
-            if (index != -1)
-            {
-                capture(index, &frame);
-            }
-            else 
-            {
-                cap >> frame;
-            }
-
+            frame = get_frame();
+            i++;
             detector.getLanes(frame, lane);
+
+            writer.write(frame);
             
             if (show_output) 
             {
@@ -230,19 +190,28 @@ int main(int argc, char* argv[])
             }
 
             //sends message
-            double angle = detector.getAckermannSteering(lane)[0];
+            std::vector<double> configuration = detector.getDesiredConfiguration(lane);
+            
+            double angle = (180 * configuration[0] / M_PI) / 2;
+            double distance = configuration[1] * 100;
 
+            std::cout << "\nangle: " << angle;
+            std::cout << "\ndistance: " << distance << std::endl;
+
+
+            sleep();
             if (serial != nullptr) 
             {
-                sendMessage(serial, angle);
+                sendMessage(serial, angle, distance);
             }
 
-            waitKey(1);
+            // waitKey(1);
         }
         catch(cv::Exception e)
         {
-            cout << e.what() << endl;
+            std::cout << "Exception: " << e.what() << std::endl;
             break;
         }
+        writer.release();
     }
 }

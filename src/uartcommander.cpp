@@ -33,6 +33,11 @@ SerialCommunication::~SerialCommunication()
 
 }
 
+void SerialCommunication::register_callback(std::function<void(const LDMap&)> callback)
+{
+    callbacks.push_back(callback);
+}
+
 void SerialCommunication::open(const std::string& devname, unsigned int baud_rate,
         asio::serial_port_base::parity opt_parity,
         asio::serial_port_base::character_size opt_csize,
@@ -67,29 +72,31 @@ void SerialCommunication::sendCommand(UARTCommand *uartCommand)
 
 void SerialCommunication::receiveData(unsigned char c)
 {
-	if (isprint(c) || c == '\n')
-	  printf("%c", c);
+	if (isprint(c) || c == '\n') 
+    {
+	  // printf("%c", c);
+    }
         switch (rxUartState)
         {
             case UartWaitForFirstStart:
                 if (c == UART_FIRST_BYTE)
-		{
-		    
+                {
+                    
                     rxUartState = UartWaitForSecondStart;
-//  		    printf("UART_FIRST_BYTE\n");
-		}
+         		    // printf("UART_FIRST_BYTE\n");
+                }
                 break;
             case UartWaitForSecondStart:
                 if (c == UART_SECOND_BYTE)
-		{
-// 		    printf("UART_SECOND_BYTE\n");
+                {
+                    // printf("UART_SECOND_BYTE\n");
                     rxUartState = UartWaitForLenght;
-		}
+                }
                 else
-		{
+                {
                     rxUartState = UartWaitForFirstStart;
-// 		   printf("UART_FIRST_BYTE\n");
-		}
+        		    // printf("UART_FIRST_BYTE\n");
+                }
                 break;
             case UartWaitForLenght:
                 if (sizeof(LDMap) == c)
@@ -98,40 +105,45 @@ void SerialCommunication::receiveData(unsigned char c)
                     lenght = c;
                     iByte = 0;
                     rxUartState = UartWaitForData;
-// 		    printf("uartData %d\n", lenght);
+		            // printf("uartData %d\n", lenght);
                 }
                 else
-		{
+                {
                     rxUartState = UartWaitForFirstStart;
-// 		    printf("UART_FIRST_BYTE\n");
-		}
+        		    // printf("UART_FIRST_BYTE\n");
+                }
                 break;
             case UartWaitForData:
                 if (iByte < lenght)
                 {
-//                     printf("data %d %d\n", iByte, c);
+                    // printf("data %d %d\n", iByte, c);
                     ch += c;
                     buffer[iByte++] = c;
                 }
                 if (iByte == lenght)
                 {
                     rxUartState = UartWaitForCheckSum;
-// 		    printf("UartWaitForCheckSum\n");
+		            // printf("UartWaitForCheckSum\n");
                 }
                 break;
             case UartWaitForCheckSum:
-                //  accept if the calculated ch is equal to c
-// 	      printf("Checksum %d %d\n", ch, c);
+                // accept if the calculated ch is equal to c
+	            // printf("Checksum %d %d\n", ch, c);
                 if (ch == c)
                 {
                     LDMap ldmap;
                     memcpy(&ldmap, buffer, sizeof(LDMap));
-// 		    printf("\033[2J");
-// 		    printf("\033[H");
-//                     printf("%d Pos (%d,%d,%d), \nSpeed (%d,%d,%d), \nAcc (%d,%d,%d)\nheading %d\n Members %d, distance %d, timestamp %d \n", 
-// 			   ldmap.id, ldmap.position_x, ldmap.position_y, ldmap.position_z,
-// 			   ldmap.speed_x, ldmap.speed_y, ldmap.speed_z, ldmap.acceleration_x, ldmap.acceleration_y,
-// 			   ldmap.acceleration_z, ldmap.orientation, ldmap.members, ldmap.distance, ldmap.timestamp);
+
+                    for (const auto &callback : callbacks)
+                    {
+                        callback(ldmap);
+                    }
+                    // printf("\033[2J");
+                    // printf("\033[H");
+                    // printf("%d Pos (%d,%d,%d), \nSpeed (%d,%d,%d), \nAcc (%d,%d,%d)\nheading %d\n Members %d, distance %d, timestamp %d \n", 
+                    // ldmap.id, ldmap.position_x, ldmap.position_y, ldmap.position_z,
+                    // ldmap.speed_x, ldmap.speed_y, ldmap.speed_z, ldmap.acceleration_x, ldmap.acceleration_y,
+                    // ldmap.acceleration_z, ldmap.orientation, ldmap.members, ldmap.distance, ldmap.timestamp);
                     
                 }
                 rxUartState = UartWaitForFirstStart;

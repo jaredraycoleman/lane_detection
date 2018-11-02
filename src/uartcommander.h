@@ -59,6 +59,7 @@ class SerialCommunication
       void sendCommand(UARTCommand *uartCommand);
       bool isOpen() const;
       void execute();
+      void register_callback(std::function<void(const LDMap&)>);
       
       void run();
       void join();
@@ -91,6 +92,7 @@ private:
       uint8_t ch;
       uint8_t lenght;
       uint8_t iByte;
+      std::vector<std::function<void(LDMap&)>> callbacks;
       
       std::thread *serialExecution;
       std::mutex mutex;

@@ -55,19 +55,29 @@ Detector::Detector(string config_path, int cam_height, int cam_width)
     }
 }
 
+
+
+
 /**
  * Get lanes
  * @param img processed (thresholded and warped to birdseye perpective) frame from video
  * @param lane Detected lane
  */
 void Detector::getLanes(const Mat &img, Lane &lane)
-{                
+{          
+    static int i = 0;      
     Mat th;
     Mat dst;
     Mat frame = img.clone();
     
     thresh(frame, th, img_threshold);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
+
+
+    char buffer[256];
+    sprintf(buffer, "video%i.jpg", i);
+    cv::imwrite(buffer, dst);
+    i++;
 
     int width = dst.cols;
     int height = dst.rows;
@@ -124,6 +134,8 @@ void Detector::getLanes(const Mat &img, Lane &lane)
         }
          
     }
+
+    // std::vector l_meters = px_to_meters(rx, ry);
     
     std::vector<double> l_new(lane.getN(), 0.0);
     std::vector<double> r_new(lane.getN(), 0.0);
@@ -183,6 +195,9 @@ Mat Detector::getTransformMatrix(int height, int width, double angle, double per
     return m;
 }
 
+
+
+
 //-----NON CLASS METHODS-----//
 
 /**
@@ -234,6 +249,35 @@ std::vector<double> derivative(std::vector<double> params)
     }
 
     return deriv;
+}
+
+std::vector<double> Detector::getDesiredConfiguration(Lane &lane)
+{
+    auto params = lane.getParams();         // vector
+    double y_pos = (double)frame_height;
+    double x_pos = (int)polynomial(params, y_pos);
+    double m_pos = 0.0001; // 1 / infinity         // 0.001 to avoid division by 0
+    double b_pos = y_pos - (m_pos * x_pos);
+
+    double y_des = (double)frame_height * 0.65;
+    double x_des = (int)polynomial(params, y_des);
+    double m_des = -1 * polynomial(derivative(params), y_des);
+    double b_des = y_des - m_des * x_des;
+
+    double angle = std::atan2(m_des - m_pos, 1 + (m_des * m_pos));
+    double distance = 0.0;
+
+    double x_prev = x_pos;
+    double step = (y_pos - y_des) / 100.0;
+    for (int i = y_pos; i > y_des; i-=step)
+    {
+        double x_cur = polynomial(params, i);
+        distance += std::sqrt(std::pow(x_cur - x_prev, 2) + std::pow(step, 2));
+        x_prev = x_cur;
+    }
+
+    distance *= m_per_px;
+    return std::vector<double> {angle, distance};
 }
 
 /**
