@@ -260,7 +260,7 @@ std::vector<double> Detector::getPidValues(Lane &lane)
     auto params = lane.getParams();
 
     double y = (double)frame_height * horizon_ratio;
-    double x = (int)polynomial(params, y);
+    double x = (frame_width / 2) - polynomial(params, y);
 
     double derivative = 0;
     if (history.size() > 0)
@@ -268,7 +268,7 @@ std::vector<double> Detector::getPidValues(Lane &lane)
         derivative = x - history.back();
     }
 
-    history.push(polynomial(params, y));
+    history.push(x);
     integral += x;
     if (history.size() > 10)
     {
