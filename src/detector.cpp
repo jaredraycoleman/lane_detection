@@ -56,8 +56,6 @@ Detector::Detector(string config_path, int cam_height, int cam_width)
 }
 
 
-
-
 /**
  * Get lanes
  * @param img processed (thresholded and warped to birdseye perpective) frame from video
@@ -243,6 +241,22 @@ std::vector<double> derivative(std::vector<double> params)
 
     return deriv;
 }
+
+double Detector::getOffset(Lane &lane)
+{
+    static double horizon_ratio = 0.65;
+    static std::tuple<double, double> point { frame_height * horizon_ratio, frame_width / 2 };
+
+    auto params = lane.getParams();
+
+    double y = (double)frame_height * horizon_ratio;
+    double x = (int)polynomial(params, y);
+
+    double offset = x - std::get<0>(point);
+    point = std::make_tuple(polynomial(params, y), y);
+    return offset;
+}
+
 
 std::vector<double> Detector::getDesiredConfiguration(Lane &lane)
 {

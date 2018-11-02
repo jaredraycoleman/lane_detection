@@ -185,21 +185,25 @@ int main(int argc, char* argv[])
                 waitKey(1);
             }
 
-            //sends message
-            std::vector<double> configuration = detector.getDesiredConfiguration(lane);
-            
-            double angle = (180 * configuration[0] / M_PI) / 2;
-            double distance = configuration[1] * 100;
+            double offset = detector.getOffset(lane);
 
-            std::cout << "\nangle: " << angle;
-            std::cout << "\ndistance: " << distance << std::endl;
+            std::cout << "offset: " << offset << std::endl;
+
+            //sends message
+            // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
+            
+            // double angle = (180 * configuration[0] / M_PI) / 2;
+            // double distance = configuration[1] * 100;
+
+            // std::cout << "\nangle: " << angle;
+            // std::cout << "\ndistance: " << distance << std::endl;
 
 
             sleep();
-            if (serial != nullptr) 
-            {
-                sendMessage(serial, angle, distance);
-            }
+            // if (serial != nullptr) 
+            // {
+            //     sendMessage(serial, angle, distance);
+            // }
         }
         catch(cv::Exception e)
         {
