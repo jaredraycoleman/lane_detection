@@ -103,10 +103,19 @@ int main(int argc, char* argv[])
     int serial_baud;
     SerialCommunication *serial = nullptr;
     bool show_output = false;
+
+    std::vector<double> pid_gains(3);
     try
     {
         libconfig::Config cfg;
         cfg.readFile(config_path.c_str());
+
+        if (cfg.exists("detector.pid_gains"))
+        {
+            pid_gains = { cfg.lookup("detector.pid_gains.kP"), 
+                          cfg.lookup("detector.pid_gains.kI"), 
+                          cfg.lookup("detector.pid_gains.kD"), };
+        }
 
         if (cfg.exists("video.index")) 
         {
@@ -191,10 +200,7 @@ int main(int argc, char* argv[])
             double i = pid_values[1];
             double d = pid_values[2];
 
-            std::cout << "p: " << p << "\n";
-            std::cout << "i: " << i << "\n";
-            std::cout << "d: " << d << "\n";
-            std::cout << std::endl;
+            std::cout << "p, i, d: " << p << " " << i << " " << d << std::endl;
 
             //sends message
             // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
@@ -205,12 +211,19 @@ int main(int argc, char* argv[])
             // std::cout << "\nangle: " << angle;
             // std::cout << "\ndistance: " << distance << std::endl;
 
+            double angle = 0;
+            for (int i =0; i < 3; i++)
+            {
+                angle += pid_gains[i] * pid_values[i];
+            }
+
+            std::cout << "angle: " << angle << std::endl;
 
             sleep();
-            // if (serial != nullptr) 
-            // {
-            //     sendMessage(serial, angle, distance);
-            // }
+            if (serial != nullptr) 
+            {
+                sendMessage(serial, angle, 60);
+            }
         }
         catch(cv::Exception e)
         {
