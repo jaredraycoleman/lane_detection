@@ -251,31 +251,11 @@ std::vector<double> derivative(std::vector<double> params)
  * @param lane Lane to follow
  * @returns offset (in pixels) between current point and last point
  */
-std::vector<double> Detector::getPidValues(Lane &lane)
+double Detector::getOffset(Lane &lane)
 {
-    static double horizon_ratio = 0.65;
-    static std::queue<double> history;
-    static double integral;
-
     auto params = lane.getParams();
-
-    double y = (double)frame_height * horizon_ratio;
-    double x = (frame_width / 2) - polynomial(params, y);
-
-    double derivative = 0;
-    if (history.size() > 0)
-    {
-        derivative = x - history.back();
-    }
-
-    history.push(x);
-    integral += x;
-    if (history.size() > 10)
-    {
-        integral -= history.front();
-        history.pop();
-    }
-    return { x, integral, derivative };
+    double y = (double)frame_height * 0.65;
+    return polynomial(params, y) - (frame_width / 2);
 }
 
 

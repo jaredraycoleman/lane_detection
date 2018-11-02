@@ -40,7 +40,7 @@ public:
     void getLanes(const cv::Mat &img, Lane &lane);
     void drawLane(cv::Mat &img, Lane &lane);
 
-    std::vector<double> getPidValues(Lane &lane);
+    double getOffset(Lane &lane);
 
 
     double getTurningRadius(Lane &lane);

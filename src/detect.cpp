@@ -27,6 +27,7 @@ using namespace std;
 #include "uartcommander.h"
 #include "detector.h"
 #include "helpers.h"
+#include "pid.h"
 
 #define TIMEOUT 500
 using namespace cv;
@@ -104,7 +105,9 @@ int main(int argc, char* argv[])
     SerialCommunication *serial = nullptr;
     bool show_output = false;
 
-    std::vector<double> pid_gains(3);
+    double Kp;
+    double Ki;
+    double Kd;
     try
     {
         libconfig::Config cfg;
@@ -112,9 +115,9 @@ int main(int argc, char* argv[])
 
         if (cfg.exists("detector.pid_gains"))
         {
-            pid_gains = { cfg.lookup("detector.pid_gains.kP"), 
-                          cfg.lookup("detector.pid_gains.kI"), 
-                          cfg.lookup("detector.pid_gains.kD"), };
+            Kp = cfg.lookup("detector.pid_gains.kP"); 
+            Ki = cfg.lookup("detector.pid_gains.kI");
+            Kd = cfg.lookup("detector.pid_gains.kD");
         }
 
         if (cfg.exists("video.index")) 
@@ -176,14 +179,13 @@ int main(int argc, char* argv[])
         namedWindow("output", 1);
     }
 
-    int i = 0;
+    PID pid(TIMEOUT, 10, 0, Kp, Kd, Ki);
     while(true)
     {
         try
         {
             //get frame from stream
             frame = get_frame();
-            i++;
             detector.getLanes(frame, lane);
             
             if (show_output) 
@@ -194,14 +196,6 @@ int main(int argc, char* argv[])
                 waitKey(1);
             }
 
-            vector<double> pid_values = detector.getPidValues(lane);
-
-            double p = pid_values[0];
-            double i = pid_values[1];
-            double d = pid_values[2];
-
-            std::cout << "p, i, d: " << p << " " << i << " " << d << std::endl;
-
             //sends message
             // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
             
@@ -211,11 +205,7 @@ int main(int argc, char* argv[])
             // std::cout << "\nangle: " << angle;
             // std::cout << "\ndistance: " << distance << std::endl;
 
-            double angle = 0;
-            for (int i =0; i < 3; i++)
-            {
-                angle += pid_gains[i] * pid_values[i];
-            }
+            double angle = pid.calculate(0, detector.getOffset(lane));
 
             std::cout << "angle: " << angle << std::endl;
 
