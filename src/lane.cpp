@@ -62,9 +62,9 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
 }
 
 int Lane::getN() { return this->n; }
-std::vector<double> Lane::getParams() { return this->params; }
-std::vector<double> Lane::getLParams() { return this->lparams; }
-std::vector<double> Lane::getRParams() { return this->rparams; }
+std::vector<double> Lane::getParams() const { return this->params; }
+std::vector<double> Lane::getLParams() const { return this->lparams; }
+std::vector<double> Lane::getRParams() const { return this->rparams; }
 
 double Lane::getFilter() { return this->filter; }
 double Lane::getCurvature() { return this->params[2]; }

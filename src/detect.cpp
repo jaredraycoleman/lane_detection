@@ -31,6 +31,7 @@ using namespace std;
 
 #define TIMEOUT 500
 using namespace cv;
+using namespace std::literals::chrono_literals;
 
 using time_stamp = std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>;
 
@@ -48,14 +49,6 @@ void sendMessage(SerialCommunication *serial, int8_t angle, int16_t distance)
     command1.dir = 1;
     command1.orientation = angle;
     serial->sendCommand(&command1);
-}
-
-void sleep() {
-    static auto t = std::chrono::high_resolution_clock::now();
-    static auto end = t + std::chrono::milliseconds(TIMEOUT);
-    
-    std::this_thread::sleep_until(end);
-    end = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(TIMEOUT);
 }
 
 vector<int> position {0, 0, 0};
@@ -97,7 +90,6 @@ int main(int argc, char* argv[])
         return 0;
     }
     string config_path(argv[1]);
-
 
     std::function<Mat()> get_frame;
     string serial_port;
@@ -171,54 +163,61 @@ int main(int argc, char* argv[])
     {
         serial->run();
     }
-    Lane lane(config_path);
-    Detector detector(config_path, frame.rows, frame.cols);
+    
+    Detector detector(config_path, get_frame, 1.0/(TIMEOUT / 1000.0), [] (const Lane &lane) {
+        std::cout << " here " << std::endl;
+    });
 
-    if (show_output) 
+    while (true)
     {
-        namedWindow("output", 1);
+        std::this_thread::sleep_for(1s);
     }
 
-    PID pid(TIMEOUT, 10, 0, Kp, Kd, Ki);
-    while(true)
-    {
-        try
-        {
-            //get frame from stream
-            frame = get_frame();
-            detector.getLanes(frame, lane);
+    // if (show_output) 
+    // {
+    //     namedWindow("output", 1);
+    // }
+
+    // PID pid(TIMEOUT, 10, 0, Kp, Kd, Ki);
+    // while(true)
+    // {
+    //     try
+    //     {
+    //         //get frame from stream
+    //         frame = get_frame();
+    //         detector.getLanes(frame, lane);
             
-            if (show_output) 
-            {
-                //draw lanes
-                detector.drawLane(frame, lane);
-                imshow("output", frame);
-                waitKey(1);
-            }
+    //         if (show_output) 
+    //         {
+    //             //draw lanes
+    //             detector.drawLane(frame, lane);
+    //             imshow("output", frame);
+    //             waitKey(1);
+    //         }
 
-            //sends message
-            // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
+    //         //sends message
+    //         // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
             
-            // double angle = (180 * configuration[0] / M_PI) / 2;
-            // double distance = configuration[1] * 100;
+    //         // double angle = (180 * configuration[0] / M_PI) / 2;
+    //         // double distance = configuration[1] * 100;
 
-            // std::cout << "\nangle: " << angle;
-            // std::cout << "\ndistance: " << distance << std::endl;
+    //         // std::cout << "\nangle: " << angle;
+    //         // std::cout << "\ndistance: " << distance << std::endl;
 
-            double angle = pid.calculate(0, detector.getOffset(lane));
+    //         double angle = pid.calculate(0, detector.getOffset(lane));
 
-            std::cout << "angle: " << angle << std::endl;
+    //         std::cout << "angle: " << angle << std::endl;
 
-            sleep();
-            if (serial != nullptr) 
-            {
-                sendMessage(serial, angle, 60);
-            }
-        }
-        catch(cv::Exception e)
-        {
-            std::cout << "Exception: " << e.what() << std::endl;
-            break;
-        }
-    }
+    //         sleep();
+    //         if (serial != nullptr) 
+    //         {
+    //             sendMessage(serial, angle, 60);
+    //         }
+    //     }
+    //     catch(cv::Exception e)
+    //     {
+    //         std::cout << "Exception: " << e.what() << std::endl;
+    //         break;
+    //     }
+    // }
 }

@@ -10,6 +10,8 @@ using namespace std;
 #include <string>
 #include <cmath>
 #include <vector>
+#include <functional>
+#include <thread>
 
 class Detector
 {
@@ -32,21 +34,28 @@ private:
     double m_per_px;
 
     cv::VideoCapture cap;
+    Lane lane;
     
     cv::Mat getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo=false);
 
+    std::thread *detect_thread;
+    std::function<void(const Lane &lane)> callback;
+
+    void detect(std::function<cv::Mat()> get_frame, double freq_hz);
+
 public:
-    Detector(string config_path, int, int);
-    void getLanes(const cv::Mat &img, Lane &lane);
-    void drawLane(cv::Mat &img, Lane &lane);
+    Detector(string config_path, std::function<cv::Mat()> get_frame, double freq_hz, std::function<void(const Lane &lane)> callback);
+    virtual ~Detector();
+    void update(const cv::Mat &img);
+    void drawLane(cv::Mat &img);
 
-    double getOffset(Lane &lane);
+    double getOffset();
 
 
-    double getTurningRadius(Lane &lane);
-    std::vector<double> getDesiredConfiguration(Lane &lane);
-    std::vector<double> getAckermannSteering(Lane &lane);
-    std::vector<double> getDifferentialSteering(Lane &lane, double speed);
+    // double getTurningRadius();
+    // std::vector<double> getDesiredConfiguration();
+    // std::vector<double> getAckermannSteering();
+    // std::vector<double> getDifferentialSteering(double speed);
 };
 
 #endif

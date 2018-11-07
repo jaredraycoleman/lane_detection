@@ -24,9 +24,9 @@ public:
     Lane(std::string config_path);
     
     int getN();
-    std::vector<double> getParams();
-    std::vector<double> getLParams();
-    std::vector<double> getRParams();
+    std::vector<double> getParams() const;
+    std::vector<double> getLParams() const;
+    std::vector<double> getRParams() const;
 
     double getFilter();
     double getCurvature();
