@@ -25,9 +25,9 @@ void thresh(cv::Mat &src, cv::Mat &dst, int threshold);
 
 //-----CLASS METHODS-----//
 
-Detector::Detector(string config_path, std::function<cv::Mat()> get_frame, double freq_hz, std::function<void(const Lane &lane)> callback)
+Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
     : lane(config_path)
-    , callback(callback)
+    , get_frame(get_frame)
 {
     libconfig::Config cfg;
     try
@@ -47,18 +47,16 @@ Detector::Detector(string config_path, std::function<cv::Mat()> get_frame, doubl
        
         vehicle_length = cfg.lookup("vehicle.length");
         vehicle_width = cfg.lookup("vehicle.width");
-         
-
+        
         cv::Mat frame = get_frame();
         frame_height = frame.rows; 
         frame_width = frame.cols; 
-
-        detect_thread = new std::thread(&Detector::detect, this, get_frame, freq_hz);
 
         m_per_px = (double)cfg.lookup("camera.range") / frame_height;
 
         matrix_transform_birdseye = getTransformMatrix(frame_height, frame_width, cam_angle, frame_floor, frame_ceiling);
         matrix_transform_fiperson = getTransformMatrix(frame_height, frame_width, cam_angle, frame_floor, frame_ceiling, true);
+        
     }
     catch(...)
     {
@@ -71,7 +69,23 @@ Detector::~Detector()
     delete detect_thread;
 }
 
-void Detector::detect(std::function<cv::Mat()> get_frame, double freq_hz)
+void Detector::start(double freq_hz, std::function<void(const Lane &lane)> callback)
+{
+    if (detect_thread == nullptr)
+    {
+        detect_thread = new std::thread(&Detector::detect, this, freq_hz, callback);
+    }
+}
+
+void Detector::join()
+{
+    if (detect_thread != nullptr)
+    {
+        detect_thread->join();
+    }
+}
+
+void Detector::detect(double freq_hz, std::function<void(const Lane &lane)> callback)
 {
     auto dt = std::chrono::duration<double>(1.0/freq_hz);
     auto end = std::chrono::high_resolution_clock::now() + dt;
@@ -81,13 +95,12 @@ void Detector::detect(std::function<cv::Mat()> get_frame, double freq_hz)
         update(get_frame());
         auto future = std::async(std::launch::async, callback, lane);
         std::this_thread::sleep_until(end);
+        end = std::chrono::high_resolution_clock::now() + dt;
         
         if (future.wait_for(0ms) != std::future_status::ready)
         {
             std::cout << "Callback taking to long" << std::endl;
         }
-        end = std::chrono::high_resolution_clock::now() + dt;
-
     }
 
 }
@@ -179,8 +192,10 @@ void Detector::update(const cv::Mat &img)
  * @param lane Lane to draw
  * @param m perspective transform matrix for lane
  */
-void Detector::drawLane(Mat &img)
+const cv::Mat& Detector::drawLane() const
 {
+    static cv::Mat img;
+    img = get_frame();
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
     for (int i = 0; i < img.rows; i++)
     {
@@ -196,6 +211,8 @@ void Detector::drawLane(Mat &img)
                 circle(img, Point(j, i), 1, Scalar(150, 0, 0), 1);
         }
     }
+
+    return img;
 }
 
 /**
@@ -223,7 +240,19 @@ Mat Detector::getTransformMatrix(int height, int width, double angle, double per
     return m;
 }
 
-
+/**
+ * Calculates offset between previous destination point and current
+ * Values closer to 0 indicate the vehicle is moving correctly (consistently) towards the destination
+ * 
+ * @param lane Lane to follow
+ * @returns offset (in pixels) between current point and last point
+ */
+double Detector::getOffset()
+{
+    auto params = lane.getParams();
+    double y = (double)frame_height * 0.65;
+    return polynomial(params, y) - (frame_width / 2);
+}
 
 
 //-----NON CLASS METHODS-----//
@@ -261,146 +290,3 @@ double polynomial(std::vector<double> params, double x)
     }
     return val;
 }	
-
-/**
- * Evaluates the derivative of a second degree polynomial 
- * @param params vector of polynomial's coefficients, from lowest degree to highest
- * @return vector of derivative polynomial coefficients
- */
-std::vector<double> derivative(std::vector<double> params)
-{
-    assert(params.size() == 3);
-    std::vector<double> deriv; 
-    for (int i = 1; i < params.size(); i++)
-    {
-        deriv.push_back(params[i] * (double)i);
-    }
-
-    return deriv;
-}
-
-/**
- * Calculates offset between previous destination point and current
- * Values closer to 0 indicate the vehicle is moving correctly (consistently) towards the destination
- * 
- * @param lane Lane to follow
- * @returns offset (in pixels) between current point and last point
- */
-double Detector::getOffset()
-{
-    auto params = lane.getParams();
-    double y = (double)frame_height * 0.65;
-    return polynomial(params, y) - (frame_width / 2);
-}
-
-
-// std::vector<double> Detector::getDesiredConfiguration()
-// {
-//     auto params = lane.getParams();         // vector
-//     double y_pos = (double)frame_height;
-//     double x_pos = (int)polynomial(params, y_pos);
-//     double m_pos = 0.0001; // 1 / infinity         // 0.001 to avoid division by 0
-//     double b_pos = y_pos - (m_pos * x_pos);
-
-//     double y_des = (double)frame_height * 0.65;
-//     double x_des = (int)polynomial(params, y_des);
-//     double m_des = -1 * polynomial(derivative(params), y_des);
-//     double b_des = y_des - m_des * x_des;
-
-//     double angle = std::atan2(m_des - m_pos, 1 + (m_des * m_pos));
-//     double distance = 0.0;
-
-//     double x_prev = x_pos;
-//     double step = (y_pos - y_des) / 100.0;
-//     for (int i = y_pos; i > y_des; i-=step)
-//     {
-//         double x_cur = polynomial(params, i);
-//         distance += std::sqrt(std::pow(x_cur - x_prev, 2) + std::pow(step, 2));
-//         x_prev = x_cur;
-//     }
-
-//     distance *= m_per_px;
-//     return std::vector<double> {angle, distance};
-// }
-
-// /**
-//  * Calculates the turning radius of the vehicle
-//  * @return Turning radius of vehcile
-//  */
-// double Detector::getTurningRadius(Lane &lane)
-// {  
-//     auto params = lane.getParams();         // vector
-//     double y_pos = (double)frame_height;
-//     double x_pos = (int)polynomial(params, y_pos);
-//     double m_pos = 0.0001; // 1 / infinity         // 0.001 to avoid division by 0
-//     double b_pos = y_pos - (m_pos * x_pos);
-
-//     double y_des = (double)frame_height * 0.25;
-//     double x_des = (int)polynomial(params, y_des);
-//     double m_des = -1 * polynomial(derivative(params), y_des);
-//     double b_des = y_des - m_des * x_des;
-
-//     double radius = 0;
-//     if (m_pos != m_des)
-//     {
-//         double x_center = (b_des - b_pos) / (m_pos - m_des);
-//         double y_center = m_pos * x_center + b_pos;
-
-//         radius = sqrt(pow(x_pos-x_center, 2) + pow(y_pos-y_center, 2));
-
-//         // Negative turning radius is for left turn
-//         if (x_center < x_pos) 
-//             radius *= -1;
-
-//         radius *= this->m_per_px;
-//         std::cout << "radius: " << radius << std::endl;
-//     }
-
-//     std::ostringstream oss;
-//     oss << "radius: " << radius;
-//     Logger::getLogger().log("lane", oss.str(), Levels::INFO, {});
-//     return radius;
-// }
-
-// /**
-//  * Calculate the ackermann steering angle for vehcile
-//  * @returns two-element vector (left and right wheel) of steering angles
-//  */
-// std::vector<double> Detector::getAckermannSteering(Lane &lane)
-// {
-//     double radius = this->getTurningRadius(lane);
-//     std::vector<double> steering_angle{0, 0};
-//     if (radius != 0)
-//     {
-//         steering_angle[0] = atan2(vehicle_length, std::abs(radius) + (vehicle_width/2));
-//         steering_angle[1] = atan2(vehicle_length, std::abs(radius) + (vehicle_width/2));
-//     }
-
-//     if (radius < 0) {
-//         steering_angle[0] *= -1;
-//         steering_angle[1] *= -1;
-//     }
-
-//     std::cout << "angle: " << steering_angle[0] << std::endl;
-
-//     return steering_angle;
-// }
-
-// /**
-//  * Calculate the differential steering velocities for vehcile
-//  * @returns two-element vector (left and right wheel) of steering velocities 
-//  */
-// std::vector<double> Detector::getDifferentialSteering(Lane &lane, double speed)
-// {
-//     double radius = this->getTurningRadius(lane);
-
-//     std::vector<double> differential{0, 0};
-//     if (radius != 0)
-//     {
-//         double temp = vehicle_width / (2 * radius);
-//         differential.at(0) = speed * (1 + temp);
-//         differential.at(1) = speed * (1 - temp);
-//     }
-
-//     return differential;
-// }

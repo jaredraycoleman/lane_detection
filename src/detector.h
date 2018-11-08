@@ -35,19 +35,24 @@ private:
 
     cv::VideoCapture cap;
     Lane lane;
+
+    std::function<cv::Mat()> get_frame;
+    double freq_hz;
     
     cv::Mat getTransformMatrix(int height, int width, double angle, double perc_low, double perc_high, bool undo=false);
 
-    std::thread *detect_thread;
-    std::function<void(const Lane &lane)> callback;
+    std::thread *detect_thread = nullptr;
 
-    void detect(std::function<cv::Mat()> get_frame, double freq_hz);
+    void detect(double freq_hz, std::function<void(const Lane &lane)> callback);
+    void update(const cv::Mat &img);
 
 public:
-    Detector(string config_path, std::function<cv::Mat()> get_frame, double freq_hz, std::function<void(const Lane &lane)> callback);
+    Detector(string config_path, std::function<cv::Mat()> get_frame);
     virtual ~Detector();
-    void update(const cv::Mat &img);
-    void drawLane(cv::Mat &img);
+    const cv::Mat&  drawLane() const;
+
+    void start(double freq_hz, std::function<void(const Lane &lane)> callback);
+    void join();
 
     double getOffset();
 

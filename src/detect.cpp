@@ -163,61 +163,24 @@ int main(int argc, char* argv[])
     {
         serial->run();
     }
-    
-    Detector detector(config_path, get_frame, 1.0/(TIMEOUT / 1000.0), [] (const Lane &lane) {
-        std::cout << " here " << std::endl;
-    });
 
-    while (true)
+    if (show_output)
     {
-        std::this_thread::sleep_for(1s);
+        cv::namedWindow("output");
     }
+    
+    Detector detector(config_path, get_frame);
 
-    // if (show_output) 
-    // {
-    //     namedWindow("output", 1);
-    // }
+    PID pid(TIMEOUT / 1000.0, 10.0, 0.0, Kp, Kd, Ki);
+    detector.start(1.0/(TIMEOUT / 1000.0), [&detector, serial, &pid, show_output] (const Lane &lane) {
+        if (show_output)
+        {
+            cv::imshow("output", detector.getOffset());
+        }
 
-    // PID pid(TIMEOUT, 10, 0, Kp, Kd, Ki);
-    // while(true)
-    // {
-    //     try
-    //     {
-    //         //get frame from stream
-    //         frame = get_frame();
-    //         detector.getLanes(frame, lane);
-            
-    //         if (show_output) 
-    //         {
-    //             //draw lanes
-    //             detector.drawLane(frame, lane);
-    //             imshow("output", frame);
-    //             waitKey(1);
-    //         }
-
-    //         //sends message
-    //         // std::vector<double> configuration = detector.getDesiredConfiguration(lane);
-            
-    //         // double angle = (180 * configuration[0] / M_PI) / 2;
-    //         // double distance = configuration[1] * 100;
-
-    //         // std::cout << "\nangle: " << angle;
-    //         // std::cout << "\ndistance: " << distance << std::endl;
-
-    //         double angle = pid.calculate(0, detector.getOffset(lane));
-
-    //         std::cout << "angle: " << angle << std::endl;
-
-    //         sleep();
-    //         if (serial != nullptr) 
-    //         {
-    //             sendMessage(serial, angle, 60);
-    //         }
-    //     }
-    //     catch(cv::Exception e)
-    //     {
-    //         std::cout << "Exception: " << e.what() << std::endl;
-    //         break;
-    //     }
-    // }
+        double angle = pid.calculate(0.0, detector.getOffset());
+        sendMessage(serial, angle, 60.0);
+        cv::waitKey(1);
+    });
+    detector.join();
 }
