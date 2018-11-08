@@ -63,10 +63,10 @@ bool SerialCommunication::isOpen() const
     return openPort;
 }
 
-void SerialCommunication::sendCommand(UARTCommand *uartCommand)
+void SerialCommunication::sendCommand(UARTCommand uartCommand)
 {
     mutex.lock();
-     queue.push(*uartCommand);
+     queue.push(uartCommand);
      mutex.unlock();
 }
 

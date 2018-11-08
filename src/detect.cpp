@@ -33,55 +33,6 @@ using namespace std;
 using namespace cv;
 using namespace std::literals::chrono_literals;
 
-using time_stamp = std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>;
-
-/**
- * Send a message to the serial 
- * @param serial SerialCommunication object
- * @param angle Angle (in degrees) to rotate
- */
-void sendMessage(SerialCommunication *serial, int8_t angle, int16_t distance)
-{
-    UARTCommand command1, command2;
-    command1.speed = 10;
-    command1.maxTime = TIMEOUT;
-    command1.distance = distance;
-    command1.dir = 1;
-    command1.orientation = angle;
-    serial->sendCommand(&command1);
-}
-
-vector<int> position {0, 0, 0};
-vector<int> speed {0, 0, 0};
-
-/**
- * Converts a vector to a string
- * @param vec vector of integers
- */
-std::string vec_to_string(std::vector<int> vec)
-{
-    std::ostringstream oss;
-    oss << "[";
-    for (auto i = vec.begin(); i != vec.end(); ++i)
-        oss << *i << ' ';
-    oss << "]";
-    return oss.str();
-}
-
-/**
- * Gets the magnitude of a vector of integers
- * @param vec vector of integers
- */
-double vec_magnitude(std::vector<int> vec)
-{
-    double sum = 0.0;
-    for (auto i = vec.begin(); i != vec.end(); ++i)
-    {
-        sum += *i;
-    }
-    return sum / vec.size();
-}
-
 int main(int argc, char* argv[])
 {
     if (argc < 2)
@@ -176,11 +127,22 @@ int main(int argc, char* argv[])
         if (show_output)
         {
             cv::imshow("output", detector.getOffset());
+            cv::waitKey(1);
         }
 
         double angle = pid.calculate(0.0, detector.getOffset());
-        sendMessage(serial, angle, 60.0);
-        cv::waitKey(1);
+
+        if (serial != nullptr)
+        {
+            UARTCommand command { 
+                .maxTime = TIMEOUT,
+                .speed = 10, 
+                .orientation = (int16_t)angle, 
+                .distance = 60,
+                .dir = 1
+            };
+            serial->sendCommand(command);
+        }
     });
     detector.join();
 }

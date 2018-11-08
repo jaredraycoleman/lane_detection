@@ -56,7 +56,7 @@ class SerialCommunication
       
       ~SerialCommunication();
       
-      void sendCommand(UARTCommand *uartCommand);
+      void sendCommand(UARTCommand uartCommand);
       bool isOpen() const;
       void execute();
       void register_callback(std::function<void(const LDMap&)>);
