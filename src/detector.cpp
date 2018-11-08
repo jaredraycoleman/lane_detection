@@ -21,7 +21,7 @@ using namespace std::literals::chrono_literals;
 //-----CLASS METHOD DECLARATIONS-----//
 
 double polynomial(std::vector<double> params, double x);
-void thresh(cv::Mat &src, cv::Mat &dst, int threshold);
+void thresh(const cv::Mat &src, cv::Mat &dst, int threshold);
 
 //-----CLASS METHODS-----//
 
@@ -40,7 +40,6 @@ Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
         r_start = cfg.lookup("detector.start.right");
 
         img_threshold = cfg.lookup("camera.threshold");
-
         double cam_angle = cfg.lookup("camera.angle");
         double frame_floor = cfg.lookup("camera.frame.floor");
         double frame_ceiling = cfg.lookup("camera.frame.ceiling");
@@ -51,6 +50,8 @@ Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
         cv::Mat frame = get_frame();
         frame_height = frame.rows; 
         frame_width = frame.cols; 
+        out = cv::VideoWriter("output.avi", CV_FOURCC('M', 'P', 'E', 'G'), 2, Size(frame_width, frame_height));
+
 
         m_per_px = (double)cfg.lookup("camera.range") / frame_height;
 
@@ -93,14 +94,8 @@ void Detector::detect(double freq_hz, std::function<void(const Lane &lane)> call
     while (true)
     {
         update(get_frame());
-        auto future = std::async(std::launch::async, callback, lane);
+        callback(lane);
         std::this_thread::sleep_until(end);
-        end = std::chrono::high_resolution_clock::now() + dt;
-        
-        if (future.wait_for(0ms) != std::future_status::ready)
-        {
-            std::cout << "Callback taking to long" << std::endl;
-        }
     }
 
 }
@@ -111,72 +106,68 @@ void Detector::detect(double freq_hz, std::function<void(const Lane &lane)> call
  * @param img processed (thresholded and warped to birdseye perpective) frame from video
  * @param lane Detected lane
  */
-void Detector::update(const cv::Mat &img)
+void Detector::update(const cv::Mat &frame)
 {          
-    cv::Mat th;
-    cv::Mat dst;
-    cv::Mat frame = img.clone();
+    static cv::Mat th;
+    static cv::Mat dst;
+    static int width = frame_width;
+    static int height = frame_height;
+    static int left = width * l_start / 100;
+    static int right = width * r_start / 100;
+    static std::vector<double> lx;
+    static std::vector<double> rx;
+    static std::vector<double> ly;
+    static std::vector<double> ry;
     
+    // Preprocess
     thresh(frame, th, img_threshold);
-    cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(img.cols, img.rows));
+    cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(width, height));
+    
+    Mat tmp;
+    cv::warpPerspective(frame, tmp, matrix_transform_birdseye, Size(width, height));
+    out.write(tmp);
 
-    int width = dst.cols;
-    int height = dst.rows;
-    
-    int left = width * l_start / 100;
-    int right = width * r_start / 100;
-    
-    std::vector<double> lx;
-    std::vector<double> rx;
-    std::vector<double> ly;
-    std::vector<double> ry;
-    
-    //Loop through frame rows at row_step
+    // Loop through frame rows at row_step
     for (int i = height-1; i >= 0; i-=row_step)
     {
-        //Loop through left side
+        bool found_left = false;
+        bool found_right = false;
         lx.push_back(left);
         ly.push_back(i);
-        for (int j = 0; j <= threshold; j+=col_step)
-        {
-            if (dst.at<uchar>(i, left+j) == 255) 
-            {
-                lx.back() = left+j;
-                left += j;
-                break;
-            }
-            
-            if (dst.at<uchar>(i, left-j) == 255) 
-            {
-                lx.back() = left-j;
-                left -= j;
-                break;
-            }
-        }
-        
-        //Loop through right side
         rx.push_back(right);
         ry.push_back(i);
         for (int j = 0; j <= threshold; j+=col_step)
         {
-            if (dst.at<uchar>(i, right-j) == 255) 
+            if (!found_left && dst.at<uchar>(i, left+j) == 255) 
+            {
+                lx.back() = left+j;
+                left += j;
+                found_left = true;
+            }
+            
+            if (!found_left && dst.at<uchar>(i, left-j) == 255) 
+            {
+                lx.back() = left-j;
+                left -= j;
+                found_left = true;
+            }
+
+            if (!found_right && dst.at<uchar>(i, right-j) == 255) 
             {
                 rx.back() = right-j;
                 right -= j;
-                break;
+                found_right = true;
             }
             
-            if (dst.at<uchar>(i, right+j) == 255) 
+            if (!found_right && dst.at<uchar>(i, right+j) == 255) 
             {
                 rx.back() = right+j;
                 right += j;
-                break;
+                found_right = true;
             }
         }
          
     }
-
-    // std::vector l_meters = px_to_meters(rx, ry);
     
     std::vector<double> l_new(lane.getN(), 0.0);
     std::vector<double> r_new(lane.getN(), 0.0);
@@ -184,6 +175,10 @@ void Detector::update(const cv::Mat &img)
     polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
     
     lane.update(l_new, r_new);
+    lx.clear();
+    rx.clear();
+    ly.clear();
+    ry.clear();
 }
 
 /**
@@ -197,10 +192,12 @@ const cv::Mat& Detector::drawLane() const
     static cv::Mat img;
     img = get_frame();
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
+    auto lparams = lane.getLParams();
+    auto rparams = lane.getRParams();
     for (int i = 0; i < img.rows; i++)
     {
-        circle(blank, Point((int)polynomial(lane.getLParams(), i), i), 3, Scalar(150, 0, 0), 3);
-        circle(blank, Point((int)polynomial(lane.getRParams(), i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point((int)polynomial(lparams, i), i), 3, Scalar(150, 0, 0), 3);
+        circle(blank, Point((int)polynomial(rparams, i), i), 3, Scalar(150, 0, 0), 3);
     }
     warpPerspective(blank, blank, matrix_transform_fiperson, Size(img.cols, img.rows));
     for (int i = 0; i < img.rows; i+=2)
@@ -266,7 +263,7 @@ double Detector::getOffset()
  * @param src image to threshold (GpuMat)
  * @param dst destination for thresholded image (GpuMat)
  */
-void thresh(cv::Mat &src, cv::Mat &dst, int threshold)
+void thresh(const cv::Mat &src, cv::Mat &dst, int threshold)
 {
     cv::cvtColor(src, dst, CV_BGR2GRAY);
     

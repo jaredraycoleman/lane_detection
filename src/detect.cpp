@@ -58,19 +58,20 @@ int main(int argc, char* argv[])
 
         if (cfg.exists("detector.pid_gains"))
         {
-            Kp = cfg.lookup("detector.pid_gains.kP"); 
-            Ki = cfg.lookup("detector.pid_gains.kI");
-            Kd = cfg.lookup("detector.pid_gains.kD");
+            Kp = cfg.lookup("detector.pid_gains.Kp"); 
+            Ki = cfg.lookup("detector.pid_gains.Ki");
+            Kd = cfg.lookup("detector.pid_gains.Kd");
+            std::cout << Kp << " " << Ki << " " << Kd << std::endl;
         }
 
         if (cfg.exists("video.index")) 
         {
             int index = cfg.lookup("video.index");
             get_frame = std::function<Mat()>([index](){
-                            VideoCapture cap(index);
+                            static VideoCapture cap(index);
+                            cap.set(CV_CAP_PROP_OPENNI_MAX_BUFFER_SIZE, 1);
                             Mat frame;
                             cap >> frame;
-                            cap.release();
                             return frame;
                         });
         } 
@@ -122,15 +123,20 @@ int main(int argc, char* argv[])
     
     Detector detector(config_path, get_frame);
 
-    PID pid(TIMEOUT / 1000.0, 10.0, 0.0, Kp, Kd, Ki);
-    detector.start(1.0/(TIMEOUT / 1000.0), [&detector, serial, &pid, show_output] (const Lane &lane) {
+    PID pid(TIMEOUT / 1000.0, 10.0, -10.0, Kp, Kd, Ki);
+    detector.start(1.0/(TIMEOUT / 1000.0), 
+        [&detector, serial, &pid, show_output] (const Lane &lane) {
         if (show_output)
         {
-            cv::imshow("output", detector.getOffset());
+            cv::imshow("output", detector.drawLane());
             cv::waitKey(1);
         }
 
-        double angle = pid.calculate(0.0, detector.getOffset());
+        double offset = detector.getOffset();
+        double angle = pid.calculate(0.0, offset);
+
+        std::cout << "offset: " << offset << std::endl;
+        std::cout << "angle: " << angle << std::endl;
 
         if (serial != nullptr)
         {

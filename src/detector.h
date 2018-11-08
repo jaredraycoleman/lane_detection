@@ -24,6 +24,7 @@ private:
     int img_threshold;
     cv::Mat matrix_transform_birdseye;
     cv::Mat matrix_transform_fiperson;
+    cv::VideoWriter out;
    
     double vehicle_length;
     double vehicle_width;
