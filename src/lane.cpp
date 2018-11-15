@@ -1,5 +1,4 @@
 #include "lane.h"
-#include "logger.h"
 
 #include <libconfig.h++>
 #include <iostream>
