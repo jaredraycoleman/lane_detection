@@ -56,12 +56,9 @@ public:
     void join();
 
     double getOffset();
+    double getAngleOffset();
+    double getTurningRadius();
 
-
-    // double getTurningRadius();
-    // std::vector<double> getDesiredConfiguration();
-    // std::vector<double> getAckermannSteering();
-    // std::vector<double> getDifferentialSteering(double speed);
 };
 
 #endif

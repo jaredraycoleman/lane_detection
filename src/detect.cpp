@@ -48,9 +48,9 @@ int main(int argc, char* argv[])
     SerialCommunication *serial = nullptr;
     bool show_output = false;
 
-    double Kp;
-    double Ki;
-    double Kd;
+    double Kp = 0.0;
+    double Ki = 0.0;
+    double Kd = 0.0;
     try
     {
         libconfig::Config cfg;
@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
             serial_baud = cfg.lookup("serial.baud");
             serial = new SerialCommunication(serial_port, serial_baud);
             serial->register_callback([](const LDMap& ldmap){
-                //std::cout << "orientation: " << ldmap.orientation << std::endl;
+                std::cout << "orientation: " << ldmap.orientation << std::endl;
             });
         }
     }
@@ -124,20 +124,25 @@ int main(int argc, char* argv[])
     Detector detector(config_path, get_frame);
 
     PID pid(TIMEOUT / 1000.0, 10.0, -10.0, Kp, Kd, Ki);
-    detector.start(1.0/(TIMEOUT / 1000.0), 
-        [&detector, serial, &pid, show_output] (const Lane &lane) {
+    detector.start(1.0/(TIMEOUT / 1000.0), [&detector, serial, &pid, show_output] (const Lane &lane) {
         if (show_output)
         {
             cv::imshow("output", detector.drawLane());
             cv::waitKey(1);
         }
 
-        double offset = detector.getOffset();
-        double angle = pid.calculate(0.0, offset);
+        std::cout << "offset: " << detector.getOffset() << std::endl;
+        std::cout << "angle: " << detector.getAngleOffset() * 360 / M_PI - 180 << std::endl;
+        std::cout << "radius: " << detector.getTurningRadius() << std::endl;
 
-        std::cout << "offset: " << offset << std::endl;
-        std::cout << "angle: " << angle << std::endl;
+        // TEST 1 
+        double angle_offset = detector.getAngleOffset();
+        double angle = pid.calculate(0.0, angle_offset);
 
+        // // TEST 2
+        // double radius = detector.getTurningRadius();
+        // double angle = pid.calculate(0.0, radius);
+        
         if (serial != nullptr)
         {
             UARTCommand command { 

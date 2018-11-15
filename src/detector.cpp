@@ -2,7 +2,6 @@ using namespace std;
 
 #include "detector.h"
 #include "polifitgsl.h"
-#include "logger.h"
 #include "helpers.h"
 
 #include <libconfig.h++>
@@ -112,8 +111,6 @@ void Detector::update(const cv::Mat &frame)
     static cv::Mat dst;
     static int width = frame_width;
     static int height = frame_height;
-    static int left = width * l_start / 100;
-    static int right = width * r_start / 100;
     static std::vector<double> lx;
     static std::vector<double> rx;
     static std::vector<double> ly;
@@ -127,6 +124,8 @@ void Detector::update(const cv::Mat &frame)
     cv::warpPerspective(frame, tmp, matrix_transform_birdseye, Size(width, height));
     out.write(tmp);
 
+    int left = width * l_start / 100;
+    int right = width * r_start / 100;
     // Loop through frame rows at row_step
     for (int i = height-1; i >= 0; i-=row_step)
     {
@@ -138,6 +137,10 @@ void Detector::update(const cv::Mat &frame)
         ry.push_back(i);
         for (int j = 0; j <= threshold; j+=col_step)
         {
+            if (found_left && found_right) 
+            {
+                break;
+            } 
             if (!found_left && dst.at<uchar>(i, left+j) == 255) 
             {
                 lx.back() = left+j;
@@ -249,6 +252,37 @@ double Detector::getOffset()
     auto params = lane.getParams();
     double y = (double)frame_height * 0.65;
     return polynomial(params, y) - (frame_width / 2);
+}
+
+double Detector::getAngleOffset()
+{
+    static double x = (double)frame_width / 2;
+    static double y = (double)frame_height * 0.65;
+
+    auto params = lane.getParams();
+    return atan2(frame_height - y, polynomial(params, y) - frame_width / 2);
+}
+
+double Detector::getTurningRadius()
+{
+    static const double x1 = (double)frame_width / 2;
+    static const double y1 = (double)frame_height;
+    static const double y2 = (double)frame_height * 0.5;
+    static const double y3 = (double)frame_height * 0.75;
+
+    auto params = lane.getParams();
+    double x2 = polynomial(params, y1);
+    double x3 = polynomial(params, y2);
+
+    double A = sqrt(pow(x2 - x3, 2) + pow(y2 - y3, 2));
+    double B = sqrt(pow(x3 - x1, 2) + pow(y3 - y1, 2));
+    double C = sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2));
+
+    double alpha = acos((A * A - B * B - C * C) / (2 * B * C));
+
+    double radius = A / (2 * sin(alpha));
+    double d = (x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1);
+    return d > 0 ? radius : -radius;
 }
 
 
