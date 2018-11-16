@@ -68,10 +68,11 @@ int main(int argc, char* argv[])
         {
             int index = cfg.lookup("video.index");
             get_frame = std::function<Mat()>([index](){
-                            static VideoCapture cap(index);
-                            cap.set(CV_CAP_PROP_OPENNI_MAX_BUFFER_SIZE, 1);
+                            VideoCapture cap(index);
+                            // cap.set(CV_CAP_PROP_OPENNI_MAX_BUFFER_SIZE, 1);
                             Mat frame;
                             cap >> frame;
+                            cap.release();
                             return frame;
                         });
         } 
@@ -98,7 +99,7 @@ int main(int argc, char* argv[])
             serial_baud = cfg.lookup("serial.baud");
             serial = new SerialCommunication(serial_port, serial_baud);
             serial->register_callback([](const LDMap& ldmap){
-                std::cout << "orientation: " << ldmap.orientation << std::endl;
+                // std::cout << "orientation: " << ldmap.orientation << std::endl;
             });
         }
     }
@@ -131,17 +132,9 @@ int main(int argc, char* argv[])
             cv::waitKey(1);
         }
 
-        std::cout << "offset: " << detector.getOffset() << std::endl;
-        std::cout << "angle: " << detector.getAngleOffset() * 360 / M_PI - 180 << std::endl;
-        std::cout << "radius: " << detector.getTurningRadius() << std::endl;
-
-        // TEST 1 
-        double angle_offset = detector.getAngleOffset();
-        double angle = pid.calculate(0.0, angle_offset);
-
         // // TEST 2
-        // double radius = detector.getTurningRadius();
-        // double angle = pid.calculate(0.0, radius);
+        double radius = detector.getTurningRadius();
+        double angle = pid.calculate(0.0, 1 / radius); // one over radius since a greater radius means less control value
         
         if (serial != nullptr)
         {
@@ -149,7 +142,7 @@ int main(int argc, char* argv[])
                 .maxTime = TIMEOUT,
                 .speed = 10, 
                 .orientation = (int16_t)angle, 
-                .distance = 60,
+                .distance = 200,
                 .dir = 1
             };
             serial->sendCommand(command);

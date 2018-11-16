@@ -95,6 +95,7 @@ void Detector::detect(double freq_hz, std::function<void(const Lane &lane)> call
         update(get_frame());
         callback(lane);
         std::this_thread::sleep_until(end);
+        end = std::chrono::high_resolution_clock::now() + dt;
     }
 
 }
@@ -240,35 +241,12 @@ Mat Detector::getTransformMatrix(int height, int width, double angle, double per
     return m;
 }
 
-/**
- * Calculates offset between previous destination point and current
- * Values closer to 0 indicate the vehicle is moving correctly (consistently) towards the destination
- * 
- * @param lane Lane to follow
- * @returns offset (in pixels) between current point and last point
- */
-double Detector::getOffset()
-{
-    auto params = lane.getParams();
-    double y = (double)frame_height * 0.65;
-    return polynomial(params, y) - (frame_width / 2);
-}
-
-double Detector::getAngleOffset()
-{
-    static double x = (double)frame_width / 2;
-    static double y = (double)frame_height * 0.65;
-
-    auto params = lane.getParams();
-    return atan2(frame_height - y, polynomial(params, y) - frame_width / 2);
-}
-
 double Detector::getTurningRadius()
 {
     static const double x1 = (double)frame_width / 2;
     static const double y1 = (double)frame_height;
-    static const double y2 = (double)frame_height * 0.5;
-    static const double y3 = (double)frame_height * 0.75;
+    static const double y2 = (double)frame_height * 0.25;
+    static const double y3 = (double)frame_height * 0.5;
 
     auto params = lane.getParams();
     double x2 = polynomial(params, y1);

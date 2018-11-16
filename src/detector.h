@@ -55,8 +55,6 @@ public:
     void start(double freq_hz, std::function<void(const Lane &lane)> callback);
     void join();
 
-    double getOffset();
-    double getAngleOffset();
     double getTurningRadius();
 
 };
