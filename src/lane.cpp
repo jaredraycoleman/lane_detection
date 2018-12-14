@@ -21,8 +21,8 @@ Lane::Lane(std::string config_path, std::vector<double> lparams, std::vector<dou
         filter = cfg.lookup("lane.filter");
         for (uint i = 0; i < lparams.size(); i++)
         {
-            lparams.push_back(lparams[i]);
-            rparams.push_back(rparams[i]);
+            this->lparams.push_back(lparams[i]);
+            this->rparams.push_back(rparams[i]);
             params.push_back((lparams[i] + rparams[i]) / 2);
         }
         vehicle_length = cfg.lookup("vehicle.length");

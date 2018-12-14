@@ -132,21 +132,21 @@ int main(int argc, char* argv[])
             cv::waitKey(1);
         }
 
-        // // TEST 2
-        // double radius = detector.getTurningRadius();
-        // double angle = pid.calculate(0.0, 1 / radius); // one over radius since a greater radius means less control value
+        // TEST 2
+        double radius = detector.getTurningRadius();
+        double angle = pid.calculate(0.0, 1 / radius); // one over radius since a greater radius means less control value
         
-        // if (serial != nullptr)
-        // {
-        //     UARTCommand command { 
-        //         .maxTime = TIMEOUT,
-        //         .speed = 10, 
-        //         .orientation = (int16_t)angle, 
-        //         .distance = 200,
-        //         .dir = 1
-        //     };
-        //     serial->sendCommand(command);
-        // }
+        if (serial != nullptr)
+        {
+            UARTCommand command { 
+                .maxTime = TIMEOUT,
+                .speed = 10, 
+                .orientation = (int16_t)angle, 
+                .distance = 200,
+                .dir = 1
+            };
+            serial->sendCommand(command);
+        }
     });
     detector.join();
 }

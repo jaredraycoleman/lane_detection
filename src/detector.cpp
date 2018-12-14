@@ -58,7 +58,7 @@ Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
     
         lane = new Lane(config_path, 
                     {(double)frame_width * l_start / 100, 0, 0},  // initial lparams
-                    {(double)frame_height * r_start / 100, 0, 0}); // initial rparams
+                    {(double)frame_width * r_start / 100, 0, 0}); // initial rparams
     }
     catch(...)
     {
@@ -125,11 +125,8 @@ void Detector::update(const cv::Mat &frame)
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(width, height));
 
     lx.push_back(polynomial(lane->getLParams(), height));
-
-    std::cout << polynomial(lane->getLParams(), height) << std::endl;
     ly.push_back(height);
     rx.push_back(polynomial(lane->getRParams(), height));
-    std::cout << polynomial(lane->getRParams(), height) << std::endl;
     ry.push_back(height);
 
     // Loop through frame rows at row_step
@@ -177,7 +174,7 @@ void Detector::update(const cv::Mat &frame)
          
     }
 
-    if (lx.size() > 3)
+    if (lx.size() > 3 && rx.size() > 3)
     {
         std::vector<double> l_new(degree, 0.0);
         std::vector<double> r_new(degree, 0.0);
@@ -189,7 +186,7 @@ void Detector::update(const cv::Mat &frame)
         rx.clear();
         ly.clear();
         ry.clear();
-    }
+    }    
 }
 
 /**
@@ -201,7 +198,7 @@ void Detector::update(const cv::Mat &frame)
 const cv::Mat& Detector::drawLane() const
 {
     static cv::Mat img;
-    img = get_frame();
+    img = get_frame();  
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
     auto lparams = lane->getLParams();
     auto rparams = lane->getRParams();
@@ -285,7 +282,6 @@ double Detector::getTurningRadius()
 void thresh(const cv::Mat &src, cv::Mat &dst, int threshold)
 {
     cv::cvtColor(src, dst, CV_BGR2GRAY);
-    
     cv::GaussianBlur(dst, dst, Size( 7, 7 ), 1.5, 1.5 );
     cv::threshold(dst, dst, threshold, 255, THRESH_BINARY);
 }
@@ -300,7 +296,7 @@ void thresh(const cv::Mat &src, cv::Mat &dst, int threshold)
 double polynomial(std::vector<double> params, double x)
 {
     double val = 0;
-    for (int i = 0; i < params.size(); i++)
+    for (uint i = 0; i < params.size(); i++)
     {
         val += params[i] * pow(x, i);
     }
