@@ -25,8 +25,7 @@ void thresh(const cv::Mat &src, cv::Mat &dst, int threshold);
 //-----CLASS METHODS-----//
 
 Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
-    : lane(config_path)
-    , get_frame(get_frame)
+    : get_frame(get_frame)
 {
     libconfig::Config cfg;
     try
@@ -55,8 +54,11 @@ Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
         m_per_px = (double)cfg.lookup("camera.range") / frame_height;
 
         matrix_transform_birdseye = getTransformMatrix(frame_height, frame_width, cam_angle, frame_floor, frame_ceiling);
-        matrix_transform_fiperson = getTransformMatrix(frame_height, frame_width, cam_angle, frame_floor, frame_ceiling, true);
-        
+        matrix_transform_fiperson = getTransformMatrix(frame_height, frame_width, cam_angle, frame_floor, frame_ceiling, true); 
+    
+        lane = new Lane(config_path, 
+                    {(double)frame_width * l_start / 100, 0, 0},  // initial lparams
+                    {(double)frame_height * r_start / 100, 0, 0}); // initial rparams
     }
     catch(...)
     {
@@ -67,6 +69,7 @@ Detector::Detector(string config_path, std::function<cv::Mat()> get_frame)
 Detector::~Detector()
 {
     delete detect_thread;
+    delete lane;
 }
 
 void Detector::start(double freq_hz, std::function<void(const Lane &lane)> callback)
@@ -91,15 +94,14 @@ void Detector::detect(double freq_hz, std::function<void(const Lane &lane)> call
     auto end = std::chrono::high_resolution_clock::now() + dt;
 
     while (true)
-    {
-        update(get_frame());
-        callback(lane);
+    {           
+        update(get_frame());       
+        callback(*lane);
         std::this_thread::sleep_until(end);
         end = std::chrono::high_resolution_clock::now() + dt;
     }
 
 }
-
 
 /**
  * Get lanes
@@ -116,73 +118,78 @@ void Detector::update(const cv::Mat &frame)
     static std::vector<double> rx;
     static std::vector<double> ly;
     static std::vector<double> ry;
+    static int degree = lane->getDegree();
     
-    // Preprocess
+    // Preprocesstry
     thresh(frame, th, img_threshold);
     cv::warpPerspective(th, dst, matrix_transform_birdseye, Size(width, height));
-    
-    Mat tmp;
-    cv::warpPerspective(frame, tmp, matrix_transform_birdseye, Size(width, height));
-    out.write(tmp);
 
-    int left = width * l_start / 100;
-    int right = width * r_start / 100;
+    lx.push_back(polynomial(lane->getLParams(), height));
+
+    std::cout << polynomial(lane->getLParams(), height) << std::endl;
+    ly.push_back(height);
+    rx.push_back(polynomial(lane->getRParams(), height));
+    std::cout << polynomial(lane->getRParams(), height) << std::endl;
+    ry.push_back(height);
+
     // Loop through frame rows at row_step
     for (int i = height-1; i >= 0; i-=row_step)
     {
+        int left = polynomial(lane->getLParams(), i); 
+        int right = polynomial(lane->getRParams(), i);
         bool found_left = false;
         bool found_right = false;
-        lx.push_back(left);
-        ly.push_back(i);
-        rx.push_back(right);
-        ry.push_back(i);
         for (int j = 0; j <= threshold; j+=col_step)
         {
             if (found_left && found_right) 
             {
                 break;
             } 
+
             if (!found_left && dst.at<uchar>(i, left+j) == 255) 
             {
-                lx.back() = left+j;
-                left += j;
+                lx.push_back(left+j);
+                ly.push_back(i);
                 found_left = true;
             }
             
             if (!found_left && dst.at<uchar>(i, left-j) == 255) 
             {
-                lx.back() = left-j;
-                left -= j;
+                lx.push_back(left-j);
+                ly.push_back(i);
                 found_left = true;
             }
 
             if (!found_right && dst.at<uchar>(i, right-j) == 255) 
             {
-                rx.back() = right-j;
-                right -= j;
+                rx.push_back(right-j);
+                ry.push_back(i);
                 found_right = true;
             }
             
             if (!found_right && dst.at<uchar>(i, right+j) == 255) 
             {
-                rx.back() = right+j;
-                right += j;
+                rx.push_back(right+j);
+                ry.push_back(i);
                 found_right = true;
             }
         }
          
     }
-    
-    std::vector<double> l_new(lane.getN(), 0.0);
-    std::vector<double> r_new(lane.getN(), 0.0);
-    polynomialfit(lx.size(), lane.getN(), &ly[0], &lx[0], &l_new[0]);
-    polynomialfit(rx.size(), lane.getN(), &ry[0], &rx[0], &r_new[0]);
-    
-    lane.update(l_new, r_new);
-    lx.clear();
-    rx.clear();
-    ly.clear();
-    ry.clear();
+
+    if (lx.size() > 3)
+    {
+        std::vector<double> l_new(degree, 0.0);
+        std::vector<double> r_new(degree, 0.0);
+        polynomialfit(lx.size(), degree, &ly[0], &lx[0], &l_new[0]);
+        polynomialfit(rx.size(), degree, &ry[0], &rx[0], &r_new[0]);
+        
+        lane->update(l_new, r_new);
+        lx.clear();
+        rx.clear();
+        ly.clear();
+        ry.clear();
+    }
 }
 
 /**
@@ -196,8 +203,8 @@ const cv::Mat& Detector::drawLane() const
     static cv::Mat img;
     img = get_frame();
     Mat blank(img.size(), img.type(), Scalar(0, 0, 0));
-    auto lparams = lane.getLParams();
-    auto rparams = lane.getRParams();
+    auto lparams = lane->getLParams();
+    auto rparams = lane->getRParams();
     for (int i = 0; i < img.rows; i++)
     {
         circle(blank, Point((int)polynomial(lparams, i), i), 3, Scalar(150, 0, 0), 3);
@@ -248,7 +255,7 @@ double Detector::getTurningRadius()
     static const double y2 = (double)frame_height * 0.25;
     static const double y3 = (double)frame_height * 0.5;
 
-    auto params = lane.getParams();
+    auto params = lane->getParams();
     double x2 = polynomial(params, y1);
     double x3 = polynomial(params, y2);
 

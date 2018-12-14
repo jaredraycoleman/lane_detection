@@ -8,7 +8,6 @@
 class Lane
 {
 private:
-    int n;  //number of parameters that define the lane (degree + 1)
     std::vector<double> params; //array of size degree. Defines coefficients for left lane curve.
     std::vector<double> lparams;
     std::vector<double> rparams;
@@ -21,9 +20,9 @@ private:
     double vehicle_width;
 
 public:
-    Lane(std::string config_path);
+    Lane(std::string config_path, std::vector<double> lparams, std::vector<double> rparams);
     
-    int getN();
+    int getDegree();
     std::vector<double> getParams() const;
     std::vector<double> getLParams() const;
     std::vector<double> getRParams() const;

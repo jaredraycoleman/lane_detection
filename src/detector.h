@@ -35,7 +35,7 @@ private:
     double m_per_px;
 
     cv::VideoCapture cap;
-    Lane lane;
+    Lane *lane;
 
     std::function<cv::Mat()> get_frame;
     double freq_hz;

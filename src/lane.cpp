@@ -10,17 +10,21 @@
  * Only provided constructor for Lane.
  * @param config_path path to config file
  */ 
-Lane::Lane(std::string config_path)
+Lane::Lane(std::string config_path, std::vector<double> lparams, std::vector<double> rparams)
 { 
     libconfig::Config cfg;
     try
     {
+        uint n = lparams.size();
+        assert(n == rparams.size());
         cfg.readFile(config_path.c_str());
-        n = cfg.lookup("lane.n");
         filter = cfg.lookup("lane.filter");
-        params = std::vector<double>(n, (double)nan("1"));
-        lparams = std::vector<double>(n, (double)nan("1"));
-        rparams = std::vector<double>(n, (double)nan("1"));
+        for (uint i = 0; i < lparams.size(); i++)
+        {
+            lparams.push_back(lparams[i]);
+            rparams.push_back(rparams[i]);
+            params.push_back((lparams[i] + rparams[i]) / 2);
+        }
         vehicle_length = cfg.lookup("vehicle.length");
         vehicle_width = cfg.lookup("vehicle.width");
     }
@@ -40,7 +44,7 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
 {
     if (params[0] != params[0])
     {
-        for (int i = 0; i < n; i++)
+        for (uint i = 0; i < params.size(); i++)
         {
             this->lparams[i] = l[i];
             this->rparams[i] = r[i];
@@ -49,7 +53,7 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
     }
     else
     {
-        for (int i = 0; i < n; i++)
+        for (uint i = 0; i < params.size(); i++)
         {
             double temp = (l[i] + r[i]) / 2;
             
@@ -60,7 +64,7 @@ void Lane::update(std::vector<double> l, std::vector<double> r)
     }
 }
 
-int Lane::getN() { return this->n; }
+int Lane::getDegree() { return this->params.size(); }
 std::vector<double> Lane::getParams() const { return this->params; }
 std::vector<double> Lane::getLParams() const { return this->lparams; }
 std::vector<double> Lane::getRParams() const { return this->rparams; }
